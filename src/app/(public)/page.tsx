@@ -204,7 +204,6 @@ export default function HomePage() {
           or connect through the links in the footer.
         </p>
       </Section>
-
     </PageShell>
   );
 }

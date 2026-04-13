@@ -31,12 +31,7 @@ export default function Footer() {
           rel="noreferrer"
           className="border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground inline-flex h-10 w-10 items-center justify-center rounded-full border transition"
         >
-          <Image
-            src="/websiteLogo.png"
-            alt="portfolio"
-            width={24}
-            height={24}
-          />
+          <Image src="/websiteLogo.png" alt="portfolio" width={24} height={24} />
         </a>
       </div>
 
