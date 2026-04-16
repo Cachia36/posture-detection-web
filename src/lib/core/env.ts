@@ -3,7 +3,7 @@ import { z } from "zod";
 const baseSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  JWT_SECRET: z.string(),
+  JWT_SECRET: z.string().optional(),
   JWT_REFRESH_SECRET: z.string().optional(),
 
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
@@ -13,7 +13,7 @@ const baseSchema = z.object({
   MONGODB_URI: z.string().optional(),
   MONGODB_DB_NAME: z.string().optional(),
 
-  PERSISTENCE_DRIVER: z.enum(["memory", "mongo"]).default("memory"),
+  PERSISTENCE_DRIVER: z.enum(["memory", "mongo"]).optional(),
 
   REFRESH_TOKEN_PEPPER: z.string().optional(),
 });
@@ -41,24 +41,10 @@ if (!parsed.success) {
 
 const env = parsed.data;
 
-if (env.NODE_ENV === "production") {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is required when NODE_ENV='production'");
-  }
-}
-
-if (env.PERSISTENCE_DRIVER === "mongo") {
-  if (!env.MONGODB_URI) {
-    throw new Error("MONGODB_URI is required when PERSISTENCE_DRIVER='mongo'");
-  }
-  if (!env.MONGODB_DB_NAME) {
-    throw new Error("MONGODB_DB_NAME is required when PERSISTENCE_DRIVER='mongo'");
-  }
-}
-
 export const NODE_ENV = env.NODE_ENV;
-export const JWT_SECRET = env.JWT_SECRET;
-export const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET ?? env.JWT_SECRET;
+export const JWT_SECRET = env.JWT_SECRET ?? "dev-secret";
+export const JWT_REFRESH_SECRET =
+  env.JWT_REFRESH_SECRET ?? env.JWT_SECRET ?? "dev-secret";
 export const APP_URL =
   env.NEXT_PUBLIC_APP_URL ?? (NODE_ENV === "development" ? "http://localhost:3000" : "");
 
