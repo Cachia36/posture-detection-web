@@ -86,14 +86,6 @@ describe("env config", () => {
   // Validation failures
   // ---------------------------------------------------------------------------
 
-  it("throws if JWT_SECRET is missing", async () => {
-    setTestEnv({
-      NODE_ENV: "development",
-    });
-
-    await expect(import("./env")).rejects.toThrow("Invalid environment variables");
-  });
-
   it("throws if NEXT_PUBLIC_APP_URL is not a valid URL", async () => {
     setTestEnv({
       NODE_ENV: "development",

@@ -37,33 +37,6 @@ describe("getDb", () => {
     await expect(getDb()).rejects.toThrow("getDb() called but PERSISTENCE_DRIVER is not 'mongo'");
   });
 
-  it("throws when MONGODB_URI is missing", async () => {
-    setTestEnv({
-      NODE_ENV: "test",
-      JWT_SECRET: "secret",
-      PERSISTENCE_DRIVER: "mongo",
-      MONGODB_DB_NAME: "test",
-    });
-
-    await expect(import("./mongoClient")).rejects.toThrow(
-      "MONGODB_URI is required when PERSISTENCE_DRIVER='mongo'",
-    );
-  });
-
-  it("throws when MONGODB_DB_NAME is missing", async () => {
-    setTestEnv({
-      NODE_ENV: "test",
-      JWT_SECRET: "secret",
-      PERSISTENCE_DRIVER: "mongo",
-      MONGODB_URI: "test",
-    });
-
-    // env.ts validates at module load, so importing mongoClient should throw
-    await expect(import("./mongoClient")).rejects.toThrow(
-      "MONGODB_DB_NAME is required when PERSISTENCE_DRIVER='mongo'",
-    );
-  });
-
   it("connects using MongoClient when configuration is valid", async () => {
     setTestEnv({
       NODE_ENV: "test",

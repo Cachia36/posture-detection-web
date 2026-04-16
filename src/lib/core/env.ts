@@ -43,8 +43,7 @@ const env = parsed.data;
 
 export const NODE_ENV = env.NODE_ENV;
 export const JWT_SECRET = env.JWT_SECRET ?? "dev-secret";
-export const JWT_REFRESH_SECRET =
-  env.JWT_REFRESH_SECRET ?? env.JWT_SECRET ?? "dev-secret";
+export const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET ?? env.JWT_SECRET ?? "dev-secret";
 export const APP_URL =
   env.NEXT_PUBLIC_APP_URL ?? (NODE_ENV === "development" ? "http://localhost:3000" : "");
 
