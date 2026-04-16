@@ -2,10 +2,15 @@ import { Resend } from "resend";
 import type { EmailProvider } from "../emailProvider";
 import { RESEND_API_KEY } from "@/lib/core/env";
 
-const resend = new Resend(RESEND_API_KEY!);
-
 export const resendEmailProvider: EmailProvider = {
   async sendPasswordReset(to, resetLink) {
+    if (!RESEND_API_KEY) {
+      console.warn("RESEND_API_KEY is not set, skipping email sending");
+      return;
+    }
+
+    const resend = new Resend(RESEND_API_KEY!);
+
     const { error } = await resend.emails.send({
       from: "Authentication App <no-reply@resend.dev>",
       to,
