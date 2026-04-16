@@ -4,206 +4,149 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Section } from "@/components/ui/Section";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FeatureCard } from "@/components/layout/FeatureCard";
-import { Pill } from "@/components/ui/Pill";
 
 export const metadata: Metadata = {
-  title: "Next.js Auth Boilerplate",
+  title: "Real-Time Posture Detection Study",
   description:
-    "A production-leaning authentication boilerplate built with Next.js, TypeScript, JWT, and Tailwind CSS.",
+    "A web-based computer vision system for sitting posture detection using a webcam, developed as part of a Bachelor's thesis in Software Development.",
 };
-
-const techStackItems = [
-  "Next.js (App Router)",
-  "TypeScript",
-  "Tailwind CSS",
-  "JWT (access + refresh)",
-  "Zod",
-  "Vitest",
-  "ESLint (flat config)",
-  "Prettier",
-  "GitHub Workflows",
-];
 
 export default function HomePage() {
   return (
-    <PageShell>
-      {/* Hero */}
-      <Section mt="none">
-        <PageHeader
-          eyebrow="Portfolio Project · Authentication Boilerplate"
-          title="Next.js Authentication Boilerplate"
-          subtitle={
-            <>
-              A production-leaning authentication boilerplate built with Next.js, TypeScript, JWT,
-              and Tailwind CSS.
-              <br />
-              <br />
-              Easy to use and swap database repositories to switch between databases such as MongoDb
-              and PostgreSQL, or any other database as needed. Email provider is also easy to swap,
-              to ensure compatibility with any future projects
-            </>
-          }
-        />
+    <>
+      <PageShell>
+        <Section
+          mt="none"
+          className="flex min-h-[calc(90vh-4rem)] flex-col items-center justify-center"
+        >
+          <PageHeader
+            eyebrow="Real-Time Posture Detection"
+            title="Design and Development of a Web-Based Computer Vision System for Sitting Posture Detection Using a Webcam"
+            subtitle={
+              <>
+                <span>
+                  This application is part of a Bachelor&apos;s thesis in Software Development,
+                  exploring real-time posture analysis using computer vision technology.
+                </span>
+                <span className="text-muted-foreground/90 mt-2 block text-base">
+                  By participating, you help contribute to academic research on workplace
+                  ergonomics.
+                </span>
+              </>
+            }
+          />
 
-        <div className="flex flex-wrap gap-3 pt-2">
-          {/* Primary CTA */}
-          <Link
-            href="/dashboard"
-            className="bg-foreground text-background inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition hover:opacity-90"
-          >
-            Open Demo Dashboard
-          </Link>
-
-          {/* Secondary CTA */}
-          <Link
-            href="/about"
-            className="border-border text-foreground hover:bg-muted inline-flex items-center justify-center rounded-full border bg-transparent px-4 py-2 text-sm font-medium transition"
-          >
-            Read About the Architecture
-          </Link>
-
-          {/* GitHub link (dashed outline) */}
-          <a
-            href="https://github.com/cachia36/next.js-boilerplate"
-            target="_blank"
-            rel="noreferrer"
-            className="border-border text-muted-foreground hover:bg-muted inline-flex items-center justify-center rounded-full border border-dashed px-4 py-2 text-sm font-medium transition"
-          >
-            View Source on GitHub
-          </a>
-        </div>
-      </Section>
-
-      {/* Key value props */}
-      <Section className="grid gap-8 md:grid-cols-3">
-        <FeatureCard title="Real-world Auth">
-          Email + password login, JWT access and refresh tokens, HttpOnly cookies, protected routes,
-          and password reset flow wired end to end.
-        </FeatureCard>
-
-        <FeatureCard title="Clean Architecture">
-          Separation between UI, services, domain logic, and infrastructure: repositories, email
-          providers, rate limiting, and environment handling.
-        </FeatureCard>
-
-        <FeatureCard title="Tested &amp; CI Ready">
-          Vitest unit tests for core modules and a GitHub Actions workflow that runs the test suite
-          on every push and pull request.
-        </FeatureCard>
-      </Section>
-
-      {/* Tech stack */}
-      <Section>
-        <h2 className="text-2xl font-semibold">Tech Stack</h2>
-        <p className="text-muted-foreground text-sm">
-          Built with a modern, production-oriented stack:
-        </p>
-
-        <div className="flex flex-wrap gap-2">
-          {techStackItems.map((item) => (
-            <Pill key={item}>{item}</Pill>
-          ))}
-        </div>
-      </Section>
-
-      {/* Architecture preview */}
-      <Section>
-        <h2 className="text-2xl font-semibold">Architecture at a Glance</h2>
-        <p className="text-muted-foreground text-sm">
-          The project is structured to be easy to extend into a real product:
-        </p>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="bg-muted text-muted-foreground rounded-xl border p-5 text-sm">
-            <h3 className="text-foreground mb-2 text-sm font-semibold">Auth &amp; Domain</h3>
-            <ul className="list-disc space-y-1 pl-4">
-              <li>
-                <code className="bg-muted rounded px-1 py-0.5 text-[11px]">
-                  src/lib/auth/domain
-                </code>{" "}
-                – auth service, JWT handling, password hashing
-              </li>
-              <li>
-                <code className="bg-muted rounded px-1 py-0.5 text-[11px]">UserRepository</code>{" "}
-                abstraction with in-memory implementation for testing, as well as mongoDb
-                implementation, easy to switch between repositories.
-              </li>
-              <li>Password reset tokens + pluggable email provider</li>
-            </ul>
-          </div>
-
-          <div className="bg-muted text-muted-foreground rounded-xl border p-5 text-sm">
-            <h3 className="text-foreground mb-2 text-sm font-semibold">API &amp; Middleware</h3>
-            <ul className="list-disc space-y-1 pl-4">
-              <li>REST-style route handlers under `/api/auth/*`</li>
-              <li>Shared error handler and rate limiter for consistent responses</li>
-              <li>Middleware-protected routes for `/dashboard` and auth-only pages</li>
-            </ul>
-          </div>
-        </div>
-
-        <p className="text-muted-foreground text-sm">
-          For a deeper, more technical breakdown of the architecture, visit the{" "}
-          <Link
-            href="/about"
-            className="text-primary font-medium underline-offset-4 hover:underline"
-          >
-            About page
-          </Link>
-          .
-        </p>
-      </Section>
-
-      {/* How to explore */}
-      <Section className="mb-8">
-        <h2 className="text-2xl font-semibold">How to Explore This Demo</h2>
-
-        <ol className="text-muted-foreground list-decimal space-y-2 pl-5 text-sm">
-          <li>
-            Register a new account using the{" "}
+          <div className="flex flex-wrap justify-center gap-3 pt-6">
             <Link
-              href="/register"
+              href="/posture-monitoring"
+              className="bg-foreground text-background inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition hover:opacity-90"
+            >
+              Start Monitoring
+            </Link>
+
+            <Link
+              href="/study"
+              className="border-border text-foreground hover:bg-muted inline-flex items-center justify-center rounded-full border bg-transparent px-4 py-2 text-sm font-medium transition"
+            >
+              Read About the Study
+            </Link>
+
+            <Link
+              href="/about"
+              className="border-border text-muted-foreground hover:bg-muted inline-flex items-center justify-center rounded-full border border-dashed px-4 py-2 text-sm font-medium transition"
+            >
+              Learn About the Project
+            </Link>
+          </div>
+        </Section>
+
+        <div className="border-border/60 mb-5 w-full border-b" />
+
+        <Section>
+          <h2 className="text-center text-2xl font-semibold">About the Project</h2>
+          <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
+            This project presents a web-based computer vision system designed to detect sitting
+            posture in real time using a webcam. It was developed as part of a Bachelor&apos;s
+            thesis in Software Development and explores how browser-based technology can support
+            ergonomic awareness in everyday desk environments.
+          </p>
+        </Section>
+
+        <Section>
+          <h2 className="text-center text-2xl font-semibold">About the Study</h2>
+          <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
+            The study investigates the feasibility and usefulness of webcam-based posture detection.
+            It aims to examine how such a system performs in practice, how users interact with it,
+            and whether real-time feedback can help encourage healthier sitting habits.
+          </p>
+        </Section>
+
+        <div className="border-border/60 mt-26 mb-5 w-full border-b" />
+
+        <Section className="grid gap-8 md:grid-cols-3">
+          <FeatureCard title="Webcam-Based Input">
+            The application uses a webcam feed directly in the browser to observe posture during
+            sitting.
+          </FeatureCard>
+
+          <FeatureCard title="Real-Time Analysis">
+            Computer vision techniques are used to estimate body positioning and identify posture
+            patterns while the user is seated.
+          </FeatureCard>
+
+          <FeatureCard title="Immediate Feedback">
+            The system is designed to provide real-time posture insights that can improve awareness
+            and support better ergonomic behaviour.
+          </FeatureCard>
+        </Section>
+        <div className="border-border/60 mt-26 mb-5 w-full border-b" />
+
+        <Section>
+          <h2 className="text-center text-2xl font-semibold">Why Participation Matters</h2>
+          <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
+            Participation helps support academic research into practical and accessible ergonomic
+            tools. Your involvement contributes to evaluating whether browser-based posture
+            detection can be useful, user-friendly, and effective in real-world settings.
+          </p>
+        </Section>
+
+        <Section>
+          <h2 className="text-center text-2xl font-semibold">Privacy and Ethics</h2>
+          <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
+            This project is intended for academic research purposes. Participants should be clearly
+            informed about how webcam data is handled, whether any information is stored, and how
+            privacy and consent are addressed throughout the study.
+          </p>
+
+          <div className="pt-4 text-center">
+            <Link
+              href="/privacy"
               className="text-primary font-medium underline-offset-4 hover:underline"
             >
-              registration page
+              Read the privacy information
             </Link>
-            .
-          </li>
-          <li>Log in and navigate to the dashboard to see a protected page.</li>
-          <li>Try logging out and visiting the dashboard again to test the middleware.</li>
-          <li>
-            Trigger the forgot/reset password flow. Check your email for a link with resetToken,
-            enter the link and reset your password.
-          </li>
-        </ol>
-      </Section>
+          </div>
+        </Section>
 
-      {/* Navbar anchor target: Services */}
-      <Section id="services">
-        <h2 className="text-2xl font-semibold">Services / Use Cases</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          This boilerplate was designed for me to learn JWT and practice with the technologies
-          listed, showcase to employers as part of my portfolio, and create a boilerplate for future
-          projects that may utilize authentication, role-based access control, and clean
-          architecture. This boilerplate is easy to extend, and{" "}
-          <span className="text-success">database and email provider are easy to swap</span>
-        </p>
-      </Section>
+        <div className="border-border/60 mt-26 mb-5 w-full border-b" />
 
-      {/* Navbar anchor target: Contact */}
-      <Section id="contact" className="mb-4">
-        <h2 className="text-2xl font-semibold">Contact</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          Want to work together or see more of my work? Feel free to reach out via{" "}
-          <a
-            href="mailto:kylecachia2@gmail.com"
-            className="text-primary font-medium underline-offset-4 hover:underline"
-          >
-            email
-          </a>{" "}
-          or connect through the links in the footer.
-        </p>
-      </Section>
-    </PageShell>
+        <Section className="mb-8 text-center">
+          <h2 className="text-2xl font-semibold">Ready to Participate?</h2>
+          <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
+            You can explore the system and contribute to the study by trying the posture detection
+            demo directly in your browser.
+          </p>
+
+          <div className="pt-4">
+            <Link
+              href="/#"
+              className="bg-foreground text-background inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition hover:opacity-90"
+            >
+              Open Demo
+            </Link>
+          </div>
+        </Section>
+      </PageShell>
+    </>
   );
 }

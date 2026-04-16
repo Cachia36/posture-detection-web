@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { cn } from "@/lib/core/utils";
 import { ThemeToggle } from "../../ui/ThemeToggle";
-import { AuthActions } from "@/components/auth/AuthActions";
 import type { NavLink } from "./NavLinks";
+import { Button } from "@/components/ui/Button";
 
 type DesktopNavbarProps = {
   navLinks: NavLink[];
@@ -17,16 +17,7 @@ type DesktopNavbarProps = {
   currentPath: string;
 };
 
-export function DesktopNavbar({
-  navLinks,
-  isDark,
-  toggleTheme,
-  authLoading,
-  isLoggedIn,
-  isAdmin,
-  onLogout,
-  currentPath,
-}: DesktopNavbarProps) {
+export function DesktopNavbar({ navLinks, isDark, toggleTheme, currentPath }: DesktopNavbarProps) {
   const isRouteActive = (href: string) => {
     if (href.startsWith("#")) return false; // anchors handled by page, not route
     if (href === "/") return currentPath === "/";
@@ -34,7 +25,7 @@ export function DesktopNavbar({
   };
 
   return (
-    <div className="hidden items-center justify-between gap-6 md:flex">
+    <div className="hidden h-full items-center justify-between gap-6 md:flex">
       {/* Logo / brand */}
       <div className="w-8" />
 
@@ -58,17 +49,14 @@ export function DesktopNavbar({
             </Link>
           );
         })}
+        <Link href="/posture-monitoring">
+          <Button>Start Monitoring</Button>
+        </Link>
       </nav>
 
       {/* Right side actions */}
       <div className="flex items-center gap-3">
         <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
-        <AuthActions
-          loading={authLoading}
-          isLoggedIn={isLoggedIn}
-          isAdmin={isAdmin}
-          onLogout={onLogout}
-        />
       </div>
     </div>
   );

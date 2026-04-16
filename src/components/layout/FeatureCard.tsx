@@ -8,9 +8,9 @@ type FeatureCardProps = {
 export function FeatureCard({ title, children }: FeatureCardProps) {
   return (
     <div className="bg-muted/60 text-muted-foreground border-border rounded-xl border p-5 text-sm shadow-sm">
-      {title && <h2 className="text-foreground mb-1 text-sm font-semibold">{title}</h2>}
+      {title && <h2 className="text-foreground mb-1 text-center text-sm font-semibold">{title}</h2>}
 
-      <div className="leading-relaxed">{children}</div>
+      <div className="text-center leading-relaxed">{children}</div>
     </div>
   );
 }

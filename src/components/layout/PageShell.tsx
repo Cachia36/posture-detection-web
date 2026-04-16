@@ -5,5 +5,5 @@ type PageShellProps = {
 };
 
 export function PageShell({ children }: PageShellProps) {
-  return <div className="container mx-auto max-w-5xl px-6 py-16">{children}</div>;
+  return <div className="container mx-auto max-w-6xl px-6">{children}</div>;
 }

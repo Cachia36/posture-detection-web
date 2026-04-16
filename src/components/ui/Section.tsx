@@ -10,7 +10,10 @@ type SectionProps = {
 
 export function Section({ id, children, className, mt = "lg" }: SectionProps) {
   return (
-    <section id={id} className={cn(mt === "lg" && "mt-16", "space-y-4", className)}>
+    <section
+      id={id}
+      className={cn(mt === "lg" && "mt-26", "mx-auto max-w-2xl space-y-4", className)}
+    >
       {children}
     </section>
   );

@@ -67,7 +67,7 @@ export default function Navbar({
   };
 
   return (
-    <nav className="bg-background/80 border-border supports-backdrop-filter:bg-background/60 sticky top-0 z-50 w-full border-b px-4 py-3 backdrop-blur">
+    <nav className="bg-background/80 border-border supports-backdrop-filter:bg-background/60 sticky top-0 z-50 h-16 w-full border-b px-4 backdrop-blur">
       {/* MOBILE: top row */}
       <div className="flex items-center justify-between md:hidden">
         <div className="w-8" />
