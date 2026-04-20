@@ -2,38 +2,75 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FilesetResolver,
   PoseLandmarker,
-  DrawingUtils,
   type PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
 
 type UsePoseLandmarkerReturn = {
-  poseResult: PoseLandmarkerResult | null;
-  isLoading: boolean;
+  isReady: boolean;
+  result: PoseLandmarkerResult | null;
   error: string | null;
   startDetection: (video: HTMLVideoElement) => Promise<void>;
   stopDetection: () => void;
-  drawLandmarks: (
-    canvas: HTMLCanvasElement,
-    video: HTMLVideoElement,
-    results?: PoseLandmarkerResult | null,
-  ) => void;
 };
 
 export function usePoseLandmarker(): UsePoseLandmarkerReturn {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const detectFrameRef = useRef<((video: HTMLVideoElement) => void) | null>(null);
 
-  const [poseResult, setPoseResult] = useState<PoseLandmarkerResult | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const [result, setResult] = useState<PoseLandmarkerResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const stopDetection = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    detectFrameRef.current = (video: HTMLVideoElement) => {
+      if (!landmarkerRef.current) return;
+
+      if (video.readyState < 2) {
+        animationFrameRef.current = requestAnimationFrame(() => {
+          detectFrameRef.current?.(video);
+        });
+        return;
+      }
+
+      const nowInMs = performance.now();
+      const detectionResult = landmarkerRef.current.detectForVideo(video, nowInMs);
+      setResult(detectionResult);
+
+      animationFrameRef.current = requestAnimationFrame(() => {
+        detectFrameRef.current?.(video);
+      });
+    };
+  }, []);
+
+  const startDetection = useCallback(
+    async (video: HTMLVideoElement) => {
+      if (!landmarkerRef.current) {
+        setError("Pose landmarker is not ready yet.");
+        return;
+      }
+
+      setError(null);
+      stopDetection();
+      detectFrameRef.current?.(video);
+    },
+    [stopDetection],
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     const initializePoseLandmarker = async () => {
       try {
-        setIsLoading(true);
         setError(null);
+        setIsReady(false);
 
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
@@ -54,14 +91,12 @@ export function usePoseLandmarker(): UsePoseLandmarkerReturn {
         }
 
         landmarkerRef.current = poseLandmarker;
+        setIsReady(true);
       } catch (err) {
         console.error("Failed to initialize PoseLandmarker:", err);
         if (isMounted) {
           setError("Failed to initialize pose detection.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+          setIsReady(false);
         }
       }
     };
@@ -70,91 +105,20 @@ export function usePoseLandmarker(): UsePoseLandmarkerReturn {
 
     return () => {
       isMounted = false;
-
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+      stopDetection();
 
       if (landmarkerRef.current) {
         landmarkerRef.current.close();
         landmarkerRef.current = null;
       }
     };
-  }, []);
-
-  const stopDetection = useCallback(() => {
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-  }, []);
-
-  const detectFrame = useCallback((video: HTMLVideoElement) => {
-    if (!landmarkerRef.current) return;
-
-    if (video.readyState < 2) {
-      animationFrameRef.current = requestAnimationFrame(() => {
-        detectFrame(video);
-      });
-      return;
-    }
-
-    const nowInMs = performance.now();
-    const results = landmarkerRef.current.detectForVideo(video, nowInMs);
-    setPoseResult(results);
-
-    animationFrameRef.current = requestAnimationFrame(() => {
-      detectFrame(video);
-    });
-  }, []);
-
-  const startDetection = useCallback(
-    async (video: HTMLVideoElement) => {
-      if (!landmarkerRef.current) {
-        setError("Pose landmarker is not initialized yet.");
-        return;
-      }
-
-      setError(null);
-      stopDetection();
-      detectFrame(video);
-    },
-    [detectFrame, stopDetection],
-  );
-
-  const drawLandmarks = useCallback(
-    (canvas: HTMLCanvasElement, video: HTMLVideoElement, results?: PoseLandmarkerResult | null) => {
-      const currentResults = results ?? poseResult;
-      if (!currentResults) return;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const drawingUtils = new DrawingUtils(ctx);
-
-      for (const landmarks of currentResults.landmarks ?? []) {
-        drawingUtils.drawLandmarks(landmarks, {
-          radius: 4,
-        });
-
-        drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS);
-      }
-    },
-    [poseResult],
-  );
+  }, [stopDetection]);
 
   return {
-    poseResult,
-    isLoading,
+    isReady,
+    result,
     error,
     startDetection,
     stopDetection,
-    drawLandmarks,
   };
 }
