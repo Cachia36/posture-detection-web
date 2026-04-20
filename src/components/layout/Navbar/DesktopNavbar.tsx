@@ -49,7 +49,7 @@ export function DesktopNavbar({ navLinks, isDark, toggleTheme, currentPath }: De
             </Link>
           );
         })}
-        <Link href="/posture-monitoring">
+        <Link href="/posture">
           <Button>Start Monitoring</Button>
         </Link>
       </nav>

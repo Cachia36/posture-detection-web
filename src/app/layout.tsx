@@ -21,8 +21,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Frontend Boilerplate",
-  description: "Reusable boilerplate for portfolio apps",
+  title: "Posture Monitor",
+  description: "Monitor your posture and improve your sitting habits",
 };
 
 const themeInitCode = `

@@ -38,7 +38,7 @@ export default function HomePage() {
 
           <div className="flex flex-wrap justify-center gap-3 pt-6">
             <Link
-              href="/posture-monitoring"
+              href="/posture"
               className="bg-foreground text-background inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition hover:opacity-90"
             >
               Start Monitoring
