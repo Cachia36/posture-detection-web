@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import Navbar from "@/components/layout/Navbar/Navbar";
-import Footer from "@/components/layout/Footer";
 import Script from "next/script";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
@@ -80,7 +79,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div className="flex min-h-screen flex-col">
           <Navbar isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
           <main className="flex flex-1 flex-col">{children}</main>
-          <Footer />
         </div>
       </body>
     </html>
