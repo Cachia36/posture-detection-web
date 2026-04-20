@@ -10,13 +10,7 @@ import { usePostureAnalysis } from "@/hooks/usePostureAnalysis";
 
 export default function PosturePage() {
   const { videoRef, isRunning, error, startCamera, stopCamera } = useWebcam();
-  const {
-    isReady,
-    result,
-    error: poseError,
-    startDetection,
-    stopDetection,
-  } = usePoseLandmarker();
+  const { isReady, result, error: poseError, startDetection, stopDetection } = usePoseLandmarker();
   const posture = usePostureAnalysis(result);
 
   useEffect(() => {
@@ -58,7 +52,7 @@ export default function PosturePage() {
           {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
           {poseError && <p className="mt-2 text-sm text-red-500">{poseError}</p>}
 
-          <div className="mt-4 text-sm space-y-1">
+          <div className="mt-4 space-y-1 text-sm">
             <p>Pose mode: {isReady ? "Ready" : "Loading..."}</p>
             <p>Landmarks detected: {result?.landmarks?.[0]?.length ?? 0}</p>
 

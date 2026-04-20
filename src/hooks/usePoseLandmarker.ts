@@ -1,108 +1,160 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    FilesetResolver,
-    PoseLandmarker,
-    type PoseLandmarkerResult,
+  FilesetResolver,
+  PoseLandmarker,
+  DrawingUtils,
+  type PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
 
 type UsePoseLandmarkerReturn = {
-    isReady: boolean;
-    result: PoseLandmarkerResult | null;
-    error: string | null;
-    startDetection: (video: HTMLVideoElement) => Promise<void>;
-    stopDetection: () => void;
+  poseResult: PoseLandmarkerResult | null;
+  isLoading: boolean;
+  error: string | null;
+  startDetection: (video: HTMLVideoElement) => Promise<void>;
+  stopDetection: () => void;
+  drawLandmarks: (
+    canvas: HTMLCanvasElement,
+    video: HTMLVideoElement,
+    results?: PoseLandmarkerResult | null,
+  ) => void;
 };
 
 export function usePoseLandmarker(): UsePoseLandmarkerReturn {
-    const landmarkerRef = useRef<PoseLandmarker | null>(null);
-    const animationFrameRef = useRef<number | null>(null);
-    const lastVideoTimeRef = useRef(-1);
+  const landmarkerRef = useRef<PoseLandmarker | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
-    const [isReady, setIsReady] = useState(false);
-    const [result, setResult] = useState<PoseLandmarkerResult | null>(null);
-    const [error, setError] = useState<string | null>(null);
+  const [poseResult, setPoseResult] = useState<PoseLandmarkerResult | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const init = useCallback(async () => {
-        try {
-            if (landmarkerRef.current) return;
+  useEffect(() => {
+    let isMounted = true;
 
-            setError(null);
+    const initializePoseLandmarker = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-            const vision = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
-            );
-
-            landmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
-                baseOptions: {
-                    modelAssetPath: "/models/pose_landmarker_lite.task",
-                },
-                runningMode: "VIDEO",
-                numPoses: 1,
-            });
-
-            setIsReady(true);
-        } catch (err) {
-            console.error(err);
-            setIsReady(false);
-            setError("Failed to initialize pose detection.");
-        }
-    }, []);
-
-    const detectFrame = useCallback((video: HTMLVideoElement) => {
-        if (!landmarkerRef.current) return;
-
-        if (video.readyState < 2) {
-            animationFrameRef.current = requestAnimationFrame(() =>
-                detectFrame(video)
-            );
-            return;
-        }
-
-        if (video.currentTime !== lastVideoTimeRef.current) {
-            lastVideoTimeRef.current = video.currentTime;
-
-            const nowInMs = performance.now();
-            const detection = landmarkerRef.current.detectForVideo(video, nowInMs);
-            setResult(detection);
-        }
-
-        animationFrameRef.current = requestAnimationFrame(() =>
-            detectFrame(video)
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
         );
-    }, []);
 
-    const startDetection = useCallback(
-        async (video: HTMLVideoElement) => {
-            await init();
+        const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
+          },
+          runningMode: "VIDEO",
+          numPoses: 1,
+        });
 
-            if (!landmarkerRef.current) return;
-
-            if (animationFrameRef.current !== null) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-
-            detectFrame(video);
-        },
-        [detectFrame, init]
-    );
-
-    const stopDetection = useCallback(() => {
-        if (animationFrameRef.current !== null) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = null;
+        if (!isMounted) {
+          poseLandmarker.close();
+          return;
         }
-        lastVideoTimeRef.current = -1;
-    }, []);
 
-    useEffect(() => {
-        return () => {
-            stopDetection();
-            landmarkerRef.current?.close();
-            landmarkerRef.current = null;
-        };
-    }, [stopDetection]);
+        landmarkerRef.current = poseLandmarker;
+      } catch (err) {
+        console.error("Failed to initialize PoseLandmarker:", err);
+        if (isMounted) {
+          setError("Failed to initialize pose detection.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-    return { isReady, result, error, startDetection, stopDetection };
+    void initializePoseLandmarker();
+
+    return () => {
+      isMounted = false;
+
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      if (landmarkerRef.current) {
+        landmarkerRef.current.close();
+        landmarkerRef.current = null;
+      }
+    };
+  }, []);
+
+  const stopDetection = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  const detectFrame = useCallback((video: HTMLVideoElement) => {
+    if (!landmarkerRef.current) return;
+
+    if (video.readyState < 2) {
+      animationFrameRef.current = requestAnimationFrame(() => {
+        detectFrame(video);
+      });
+      return;
+    }
+
+    const nowInMs = performance.now();
+    const results = landmarkerRef.current.detectForVideo(video, nowInMs);
+    setPoseResult(results);
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      detectFrame(video);
+    });
+  }, []);
+
+  const startDetection = useCallback(
+    async (video: HTMLVideoElement) => {
+      if (!landmarkerRef.current) {
+        setError("Pose landmarker is not initialized yet.");
+        return;
+      }
+
+      setError(null);
+      stopDetection();
+      detectFrame(video);
+    },
+    [detectFrame, stopDetection],
+  );
+
+  const drawLandmarks = useCallback(
+    (canvas: HTMLCanvasElement, video: HTMLVideoElement, results?: PoseLandmarkerResult | null) => {
+      const currentResults = results ?? poseResult;
+      if (!currentResults) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const drawingUtils = new DrawingUtils(ctx);
+
+      for (const landmarks of currentResults.landmarks ?? []) {
+        drawingUtils.drawLandmarks(landmarks, {
+          radius: 4,
+        });
+
+        drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS);
+      }
+    },
+    [poseResult],
+  );
+
+  return {
+    poseResult,
+    isLoading,
+    error,
+    startDetection,
+    stopDetection,
+    drawLandmarks,
+  };
 }
