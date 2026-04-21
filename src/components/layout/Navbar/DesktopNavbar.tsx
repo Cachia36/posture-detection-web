@@ -4,7 +4,6 @@ import Link from "next/link";
 import { cn } from "@/lib/core/utils";
 import { ThemeToggle } from "../../ui/ThemeToggle";
 import type { NavLink } from "./NavLinks";
-import { Button } from "@/components/ui/Button";
 
 type DesktopNavbarProps = {
   navLinks: NavLink[];
@@ -49,9 +48,6 @@ export function DesktopNavbar({ navLinks, isDark, toggleTheme, currentPath }: De
             </Link>
           );
         })}
-        <Link href="/posture">
-          <Button>Start Monitoring</Button>
-        </Link>
       </nav>
 
       {/* Right side actions */}

@@ -1,20 +1,34 @@
 import { useMemo } from "react";
 import type { PoseLandmarkerResult } from "@mediapipe/tasks-vision";
 
-type PostureResult = {
-  shoulderTilt: number;
-  headTilt: number;
-  headSideOffset: number;
-  isShoulderTilted: boolean;
-  isHeadTilted: boolean;
-  isHeadOffCenter: boolean;
-  badPosture: boolean;
-};
+export type PostureAnalysisResult =
+  | {
+    label: "no-pose";
+    reasons: string[];
+    metrics: null;
+  }
+  | {
+    label: "good" | "bad";
+    reasons: string[];
+    metrics: {
+      shoulderTilt: number;
+      headTilt: number;
+      headSideOffset: number;
+    };
+  };
 
-export function usePostureAnalysis(result: PoseLandmarkerResult | null): PostureResult | null {
+export function usePostureAnalysis(
+  result: PoseLandmarkerResult | null,
+): PostureAnalysisResult {
   return useMemo(() => {
     const pose = result?.landmarks?.[0];
-    if (!pose) return null;
+    if (!pose) {
+      return {
+        label: "no-pose",
+        reasons: [],
+        metrics: null,
+      };
+    }
 
     const leftEye = pose[2];
     const rightEye = pose[5];
@@ -22,7 +36,11 @@ export function usePostureAnalysis(result: PoseLandmarkerResult | null): Posture
     const rightShoulder = pose[12];
 
     if (!leftEye || !rightEye || !leftShoulder || !rightShoulder) {
-      return null;
+      return {
+        label: "no-pose",
+        reasons: [],
+        metrics: null,
+      };
     }
 
     const minVisibility = 0.6;
@@ -33,7 +51,13 @@ export function usePostureAnalysis(result: PoseLandmarkerResult | null): Posture
       (leftShoulder.visibility ?? 0) > minVisibility &&
       (rightShoulder.visibility ?? 0) > minVisibility;
 
-    if (!visibleEnough) return null;
+    if (!visibleEnough) {
+      return {
+        label: "no-pose",
+        reasons: [],
+        metrics: null,
+      };
+    }
 
     const eyeMidX = (leftEye.x + rightEye.x) / 2;
     const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
@@ -42,20 +66,24 @@ export function usePostureAnalysis(result: PoseLandmarkerResult | null): Posture
     const headTilt = Math.abs(leftEye.y - rightEye.y);
     const headSideOffset = Math.abs(eyeMidX - shoulderMidX);
 
-    const isShoulderTilted = shoulderTilt > 0.02;
-    const isHeadTilted = headTilt > 0.012;
-    const isHeadOffCenter = headSideOffset > 0.02;
+    const isShoulderTilted = shoulderTilt > 0.035
+    const isHeadTilted = headTilt > 0.02;
+    const isHeadOffCenter = headSideOffset > 0.04;
 
-    const badPosture = isShoulderTilted || isHeadTilted || isHeadOffCenter;
+    const reasons: string[] = [];
+
+    if (isHeadTilted) reasons.push("Head tilted");
+    if (isHeadOffCenter) reasons.push("Head off-center");
+    if (isShoulderTilted) reasons.push("Uneven shoulders");
 
     return {
-      shoulderTilt,
-      headTilt,
-      headSideOffset,
-      isShoulderTilted,
-      isHeadTilted,
-      isHeadOffCenter,
-      badPosture,
+      label: reasons.length > 0 ? "bad" : "good",
+      reasons,
+      metrics: {
+        shoulderTilt,
+        headTilt,
+        headSideOffset,
+      },
     };
   }, [result]);
 }

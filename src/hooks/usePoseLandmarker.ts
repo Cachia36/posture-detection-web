@@ -27,6 +27,8 @@ export function usePoseLandmarker(): UsePoseLandmarkerReturn {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
+
+    setResult(null);
   }, []);
 
   useEffect(() => {
@@ -34,6 +36,8 @@ export function usePoseLandmarker(): UsePoseLandmarkerReturn {
       if (!landmarkerRef.current) return;
 
       if (video.readyState < 2) {
+        setResult(null);
+
         animationFrameRef.current = requestAnimationFrame(() => {
           detectFrameRef.current?.(video);
         });
