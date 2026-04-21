@@ -26,6 +26,21 @@ export function useWebcam() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+
+        await new Promise<void>((resolve) => {
+          const video = videoRef.current!;
+          const onLoadedMetadata = () => {
+            video.removeEventListener("loadedmetadata", onLoadedMetadata);
+            resolve();
+          };
+
+          if (video.readyState >= 1) {
+            resolve();
+          } else {
+            video.addEventListener("loadedmetadata", onLoadedMetadata);
+          }
+        });
+
         await videoRef.current.play();
       }
 

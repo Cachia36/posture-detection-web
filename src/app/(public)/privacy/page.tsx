@@ -24,35 +24,35 @@ export default function PrivacyPage() {
       <Section>
         <h2 className="text-2xl font-semibold">Webcam Use</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          This system uses webcam input for posture-related analysis during use of the application.
-          Participants should understand how the webcam is used and whether any data is stored,
-          processed temporarily, or retained for research purposes.
+          The application uses the device webcam to analyse body landmarks required for posture
+          estimation. Video frames are processed locally in the browser in real time using computer
+          vision models.
         </p>
       </Section>
 
       <Section>
         <h2 className="text-2xl font-semibold">Privacy Considerations</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          Privacy is an important part of any system involving camera input. Participants should be
-          informed about what information is collected, how it is handled, and what safeguards are
-          in place to protect user data.
+          No webcam video is recorded, stored, or transmitted to external servers by the
+          application. All posture analysis occurs locally within the user's browser session. The
+          system does not retain images, recordings, or personal video data.
         </p>
       </Section>
 
       <Section>
         <h2 className="text-2xl font-semibold">Consent and Transparency</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          Participation should be voluntary and based on clear information. Users should know what
-          the purpose of the study is, what their involvement means, and any limits of the system.
+          Participation should always be voluntary. Users should understand how the system works,
+          what information is processed during use, and the limitations of the technology.
         </p>
       </Section>
 
       <Section className="mb-8">
         <h2 className="text-2xl font-semibold">Research Context</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          This project is developed as part of an academic study in Software Development and should
-          be understood in that context. The system is intended to support research into posture
-          detection and ergonomic awareness rather than provide medical advice or diagnosis.
+          This application is developed as part of an academic dissertation in Software Development.
+          The system is intended for research and demonstration purposes and should not be
+          considered a medical or diagnostic tool.
         </p>
       </Section>
     </PageShell>

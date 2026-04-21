@@ -3,23 +3,21 @@ import type { PoseLandmarkerResult } from "@mediapipe/tasks-vision";
 
 export type PostureAnalysisResult =
   | {
-    label: "no-pose";
-    reasons: string[];
-    metrics: null;
-  }
+      label: "no-pose";
+      reasons: string[];
+      metrics: null;
+    }
   | {
-    label: "good" | "bad";
-    reasons: string[];
-    metrics: {
-      shoulderTilt: number;
-      headTilt: number;
-      headSideOffset: number;
+      label: "good" | "bad";
+      reasons: string[];
+      metrics: {
+        shoulderTilt: number;
+        headTilt: number;
+        headSideOffset: number;
+      };
     };
-  };
 
-export function usePostureAnalysis(
-  result: PoseLandmarkerResult | null,
-): PostureAnalysisResult {
+export function usePostureAnalysis(result: PoseLandmarkerResult | null): PostureAnalysisResult {
   return useMemo(() => {
     const pose = result?.landmarks?.[0];
     if (!pose) {
@@ -30,12 +28,13 @@ export function usePostureAnalysis(
       };
     }
 
+    const nose = pose[0];
     const leftEye = pose[2];
     const rightEye = pose[5];
     const leftShoulder = pose[11];
     const rightShoulder = pose[12];
 
-    if (!leftEye || !rightEye || !leftShoulder || !rightShoulder) {
+    if (!nose || !leftEye || !rightEye || !leftShoulder || !rightShoulder) {
       return {
         label: "no-pose",
         reasons: [],
@@ -43,13 +42,14 @@ export function usePostureAnalysis(
       };
     }
 
-    const minVisibility = 0.6;
+    const minVisibility = 0.35;
 
     const visibleEnough =
-      (leftEye.visibility ?? 0) > minVisibility &&
-      (rightEye.visibility ?? 0) > minVisibility &&
-      (leftShoulder.visibility ?? 0) > minVisibility &&
-      (rightShoulder.visibility ?? 0) > minVisibility;
+      (nose.visibility ?? 1) >= minVisibility &&
+      (leftEye.visibility ?? 1) >= minVisibility &&
+      (rightEye.visibility ?? 1) >= minVisibility &&
+      (leftShoulder.visibility ?? 1) >= minVisibility &&
+      (rightShoulder.visibility ?? 1) >= minVisibility;
 
     if (!visibleEnough) {
       return {
@@ -59,14 +59,13 @@ export function usePostureAnalysis(
       };
     }
 
-    const eyeMidX = (leftEye.x + rightEye.x) / 2;
     const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
 
     const shoulderTilt = Math.abs(leftShoulder.y - rightShoulder.y);
     const headTilt = Math.abs(leftEye.y - rightEye.y);
-    const headSideOffset = Math.abs(eyeMidX - shoulderMidX);
+    const headSideOffset = Math.abs(nose.x - shoulderMidX);
 
-    const isShoulderTilted = shoulderTilt > 0.035
+    const isShoulderTilted = shoulderTilt > 0.035;
     const isHeadTilted = headTilt > 0.02;
     const isHeadOffCenter = headSideOffset > 0.04;
 

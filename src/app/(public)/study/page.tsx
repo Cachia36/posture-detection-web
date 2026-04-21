@@ -25,27 +25,28 @@ export default function StudyPage() {
       <Section>
         <h2 className="text-2xl font-semibold">Purpose of the Study</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          This study evaluates the feasibility and usefulness of a webcam-based posture detection
-          system. It explores whether real-time posture analysis can be delivered effectively
-          through a browser and whether users find such a system practical and meaningful.
+          This study investigates whether webcam-based posture monitoring can be implemented
+          effectively in a browser environment. The research evaluates both the technical
+          feasibility of the approach and how users interact with the posture feedback provided by
+          the system.
         </p>
       </Section>
 
       <Section>
         <h2 className="text-2xl font-semibold">What Participation Involves</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          Participants use the system through their browser and allow webcam-based posture analysis
-          during the session. The goal is to observe how the application performs and how users
-          respond to the posture-related feedback it provides.
+          Participants use the application through their browser while sitting normally in front of
+          their computer. The system analyses upper-body posture in real time using the webcam and
+          provides immediate feedback indicating whether posture appears balanced or misaligned.
         </p>
       </Section>
 
       <Section>
         <h2 className="text-2xl font-semibold">Why Participation Is Valuable</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-          Your participation contributes to academic research into practical ergonomic tools. It
-          helps assess the system&apos;s usability, technical reliability, and potential usefulness
-          in real-world desk-based environments.
+          Your participation helps evaluate whether browser-based posture detection systems are
+          usable, understandable, and technically reliable in everyday environments. The feedback
+          gathered contributes to understanding how such systems may support ergonomic awareness.
         </p>
       </Section>
 
