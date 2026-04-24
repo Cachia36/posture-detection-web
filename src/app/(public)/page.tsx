@@ -36,10 +36,7 @@ function playBeep() {
     osc.frequency.setValueAtTime(650, audioCtx.currentTime + delay);
 
     gain.gain.setValueAtTime(0.0001, audioCtx.currentTime + delay);
-    gain.gain.exponentialRampToValueAtTime(
-      0.05,
-      audioCtx.currentTime + delay + 0.03,
-    );
+    gain.gain.exponentialRampToValueAtTime(0.05, audioCtx.currentTime + delay + 0.03);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -63,19 +60,17 @@ export default function HomePage() {
 
   const { videoRef, isRunning, error, startCamera, stopCamera } = useWebcam();
 
-  const {
-    isReady,
-    result,
-    error: poseError,
-    startDetection,
-    stopDetection,
-  } = usePoseLandmarker();
+  const { isReady, result, error: poseError, startDetection, stopDetection } = usePoseLandmarker();
 
   const rawPosture = usePostureAnalysis(result);
   const posture = useStablePosture(rawPosture, 700);
   const ALERT_THRESHOLD_MS = 5000;
   const ALERT_REPEAT_MS = 15000;
-  const { showAlert, alertCount, dismissAlert } = useBadPostureAlert(posture, ALERT_THRESHOLD_MS, ALERT_REPEAT_MS);
+  const { showAlert, alertCount, dismissAlert } = useBadPostureAlert(
+    posture,
+    ALERT_THRESHOLD_MS,
+    ALERT_REPEAT_MS,
+  );
   const { permission, requestPermission, showNotification } = useBrowserNotification();
   const { summary, exportSession } = useSessionTracking(
     posture,
@@ -191,12 +186,12 @@ export default function HomePage() {
   return (
     <PageShell>
       <Section className="max-w-7xl">
-
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-4">
             <div
-              className={`bg-muted border-border relative aspect-video min-h-[420px] w-full overflow-hidden rounded-2xl border shadow-sm ${showAlert ? "animate-pulse ring-4 ring-red-500 ring-offset-2" : ""
-                }`}
+              className={`bg-muted border-border relative aspect-video min-h-[420px] w-full overflow-hidden rounded-2xl border shadow-sm ${
+                showAlert ? "animate-pulse ring-4 ring-red-500 ring-offset-2" : ""
+              }`}
             >
               <video
                 ref={videoRef}
@@ -214,16 +209,15 @@ export default function HomePage() {
               {!isRunning && (
                 <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center text-center text-sm">
                   <p className="font-medium">Webcam preview will appear here</p>
-                  <p className="mt-1 text-xs">
-                    Start monitoring to enable posture detection.
-                  </p>
+                  <p className="mt-1 text-xs">Start monitoring to enable posture detection.</p>
                 </div>
               )}
 
               {posture.label !== "no-pose" && (
                 <div
-                  className={`absolute top-4 left-4 rounded-full px-4 py-2 text-sm font-medium text-white shadow ${posture.label === "good" ? "bg-green-600" : "bg-red-600"
-                    }`}
+                  className={`absolute top-4 left-4 rounded-full px-4 py-2 text-sm font-medium text-white shadow ${
+                    posture.label === "good" ? "bg-green-600" : "bg-red-600"
+                  }`}
                 >
                   {posture.label === "good" ? "Good posture" : "Bad posture detected"}
                 </div>
@@ -231,12 +225,10 @@ export default function HomePage() {
 
               {showAlert && (
                 <div className="bg-background absolute right-4 bottom-4 max-w-sm rounded-2xl border border-red-500 p-4 shadow-lg">
-                  <p className="font-semibold text-red-600">
-                    Posture needs adjustment
-                  </p>
+                  <p className="font-semibold text-red-600">Posture needs adjustment</p>
                   <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                    Poor posture has been detected for a while. Sit upright and
-                    realign your head and shoulders.
+                    Poor posture has been detected for a while. Sit upright and realign your head
+                    and shoulders.
                   </p>
 
                   <button
@@ -300,21 +292,18 @@ export default function HomePage() {
                 Important: keep the pop-out monitor open.
               </p>
               <p className="text-muted-foreground mt-1 text-sm">
-                Monitoring will stop if the pop-out window is closed. Keep it open
-                while using your laptop so alerts can continue working.
+                Monitoring will stop if the pop-out window is closed. Keep it open while using your
+                laptop so alerts can continue working.
               </p>
             </div>
           </div>
 
           <aside className="w-full min-w-0 space-y-4">
             <div className="rounded-2xl border border-red-500/70 p-4 text-sm">
-              <h3 className="font-semibold text-red-600">
-                Important Monitoring Notice
-              </h3>
+              <h3 className="font-semibold text-red-600">Important Monitoring Notice</h3>
               <p className="text-muted-foreground mt-2 leading-relaxed">
-                This system requires the pop-out monitor to remain open. If you close
-                it, posture monitoring will stop and alerts will no longer be
-                triggered.
+                This system requires the pop-out monitor to remain open. If you close it, posture
+                monitoring will stop and alerts will no longer be triggered.
               </p>
             </div>
 
@@ -326,8 +315,7 @@ export default function HomePage() {
                 </li>
                 <li>Allow camera and notification permissions.</li>
                 <li>
-                  Keep the pop-out monitor open.{" "}
-                  <strong>Monitoring stops if it is closed.</strong>
+                  Keep the pop-out monitor open. <strong>Monitoring stops if it is closed.</strong>
                 </li>
                 <li>Sit naturally facing the camera.</li>
                 <li>Ensure your head and shoulders are visible.</li>
@@ -373,21 +361,21 @@ export default function HomePage() {
       <Section>
         <h2 className="text-center text-2xl font-semibold">About the Project</h2>
         <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          This project presents a browser-based posture monitoring system that uses
-          computer vision to analyse sitting posture in real time through a standard
-          webcam. The system was developed as part of an undergraduate dissertation in
-          Software Development and investigates whether accessible, browser-based tools
-          can help increase awareness of everyday sitting posture.
+          This project presents a browser-based posture monitoring system that uses computer vision
+          to analyse sitting posture in real time through a standard webcam. The system was
+          developed as part of an undergraduate dissertation in Software Development and
+          investigates whether accessible, browser-based tools can help increase awareness of
+          everyday sitting posture.
         </p>
       </Section>
 
       <Section>
         <h2 className="text-center text-2xl font-semibold">About the Study</h2>
         <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          The study evaluates the feasibility and usability of real-time posture detection
-          delivered directly through a web application. It explores how reliably posture can
-          be analysed using webcam-based body landmark detection and how users respond to
-          real-time visual feedback about their sitting posture.
+          The study evaluates the feasibility and usability of real-time posture detection delivered
+          directly through a web application. It explores how reliably posture can be analysed using
+          webcam-based body landmark detection and how users respond to real-time visual feedback
+          about their sitting posture.
         </p>
       </Section>
 
@@ -395,42 +383,39 @@ export default function HomePage() {
 
       <Section className="grid gap-8 md:grid-cols-3">
         <FeatureCard title="Webcam-Based Input">
-          The application uses a webcam feed directly in the browser to observe posture
-          during sitting.
+          The application uses a webcam feed directly in the browser to observe posture during
+          sitting.
         </FeatureCard>
 
         <FeatureCard title="Real-Time Analysis">
-          Computer vision techniques are used to estimate body positioning and identify
-          posture patterns while the user is seated.
+          Computer vision techniques are used to estimate body positioning and identify posture
+          patterns while the user is seated.
         </FeatureCard>
 
         <FeatureCard title="Immediate Feedback">
-          The system is designed to provide real-time posture insights that can improve
-          awareness and support better ergonomic behaviour.
+          The system is designed to provide real-time posture insights that can improve awareness
+          and support better ergonomic behaviour.
         </FeatureCard>
       </Section>
 
       <div className="border-border/60 mt-26 mb-5 w-full border-b" />
 
       <Section>
-        <h2 className="text-center text-2xl font-semibold">
-          Why Participation Matters
-        </h2>
+        <h2 className="text-center text-2xl font-semibold">Why Participation Matters</h2>
         <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          Participation helps support academic research into practical and accessible
-          ergonomic tools. Your involvement contributes to evaluating whether
-          browser-based posture detection can be useful, user-friendly, and effective in
-          real-world settings.
+          Participation helps support academic research into practical and accessible ergonomic
+          tools. Your involvement contributes to evaluating whether browser-based posture detection
+          can be useful, user-friendly, and effective in real-world settings.
         </p>
       </Section>
 
       <Section>
         <h2 className="text-center text-2xl font-semibold">Privacy and Ethics</h2>
         <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          Webcam frames are processed locally in the browser for real-time posture
-          analysis. The application does not record, store, or upload webcam video. This
-          project is intended for academic research and demonstration purposes and should
-          not be considered a medical or diagnostic tool.
+          Webcam frames are processed locally in the browser for real-time posture analysis. The
+          application does not record, store, or upload webcam video. This project is intended for
+          academic research and demonstration purposes and should not be considered a medical or
+          diagnostic tool.
         </p>
 
         <div className="mb-26 pt-4 text-center">
