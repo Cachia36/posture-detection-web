@@ -57,11 +57,17 @@ export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestMetricsRef = useRef<PostureBaseline | null>(null);
   const ignoreNextPiPLeaveRef = useRef(false);
+  const noPersonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pipMessage, setPipMessage] = useState<string | null>(null);
   const [baseline, setBaseline] = useState<PostureBaseline | null>(null);
   const [calibrationMessage, setCalibrationMessage] = useState<string | null>(null);
+  const [calibrationStatus, setCalibrationStatus] = useState<"idle" | "success" | "error" | "info">(
+    "idle",
+  );
+  const [noPersonMessage, setNoPersonMessage] = useState<string | null>(null);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [showCameraPreview, setShowCameraPreview] = useState(false);
 
   const { videoRef, isRunning, error, startCamera, stopCamera } = useWebcam();
 
@@ -69,15 +75,17 @@ export default function HomePage() {
 
   const rawPosture = usePostureAnalysis(result, baseline);
   const posture = useStablePosture(rawPosture, 700);
-  const ALERT_THRESHOLD_MS = 5000;
-  const ALERT_REPEAT_MS = 15000;
+  const ALERT_THRESHOLD_MS = 30000; // 30 Seconds
+  const ALERT_REPEAT_MS = 25000; // 25 Seconds (alerts will repeat every 25 seconds if bad posture continues, ensuring at least some time to correct before next alert)
+  const NO_PERSON_TIMEOUT_MS = 10 * 60 * 1000; // 10 Minutes
+  const SESSION_TARGET_MS = 60 * 60 * 1000; // 60 Minutes
   const { showAlert, alertCount, dismissAlert } = useBadPostureAlert(
     posture,
     ALERT_THRESHOLD_MS,
     ALERT_REPEAT_MS,
   );
   const { permission, requestPermission, showNotification } = useBrowserNotification();
-  const { exportSession } = useSessionTracking(
+  const { summary, exportSession } = useSessionTracking(
     posture,
     alertCount,
     isMonitoring,
@@ -112,6 +120,11 @@ export default function HomePage() {
 
   useEffect(() => {
     return () => {
+      if (noPersonTimeoutRef.current) {
+        clearTimeout(noPersonTimeoutRef.current);
+        noPersonTimeoutRef.current = null;
+      }
+
       stopCamera();
       stopDetection();
     };
@@ -141,7 +154,7 @@ export default function HomePage() {
       stopDetection();
       stopCamera();
       setPipMessage(
-        "Monitoring has stopped because the pop-out monitor was closed. Restart monitoring and keep the pop-out window open.",
+        "Session ended because the pop-out monitor was closed. A valid study session requires 60 minutes, so you may need to start a new session.",
       );
     };
 
@@ -151,12 +164,75 @@ export default function HomePage() {
       document.removeEventListener("leavepictureinpicture", handleLeavePiP);
     };
   }, [isMonitoring, stopCamera, stopDetection]);
+  useEffect(() => {
+    if (!isMonitoring) {
+      if (noPersonTimeoutRef.current) {
+        clearTimeout(noPersonTimeoutRef.current);
+        noPersonTimeoutRef.current = null;
+      }
 
+      setNoPersonMessage(null);
+      return;
+    }
+
+    if (posture.label === "no-pose") {
+      setNoPersonMessage(
+        "No person detected. Monitoring will stop if no person is detected for 10 minutes.",
+      );
+
+      if (!noPersonTimeoutRef.current) {
+        noPersonTimeoutRef.current = setTimeout(() => {
+          dismissAlert();
+          setIsMonitoring(false);
+          stopDetection();
+          stopCamera();
+
+          if (document.pictureInPictureElement && document.exitPictureInPicture) {
+            ignoreNextPiPLeaveRef.current = true;
+            void document.exitPictureInPicture();
+          }
+
+          setNoPersonMessage(null);
+          setPipMessage(
+            "Session ended because no person was detected for 10 continuous minutes. A valid study session requires 60 minutes, so you may need to start a new session.",
+          );
+
+          noPersonTimeoutRef.current = null;
+        }, NO_PERSON_TIMEOUT_MS);
+      }
+
+      return;
+    }
+
+    if (noPersonTimeoutRef.current) {
+      clearTimeout(noPersonTimeoutRef.current);
+      noPersonTimeoutRef.current = null;
+    }
+
+    setNoPersonMessage(null);
+  }, [
+    isMonitoring,
+    posture.label,
+    NO_PERSON_TIMEOUT_MS,
+    dismissAlert,
+    stopCamera,
+    stopDetection,
+  ]);
   const openPictureInPicture = async () => {
     const video = videoRef.current;
 
+    if (!document.pictureInPictureEnabled) {
+      setPipMessage("Picture-in-Picture is disabled or not supported in this browser.");
+      return false;
+    }
+
     if (!video?.requestPictureInPicture) {
-      setPipMessage("Picture-in-Picture is not supported in this browser.");
+      setPipMessage("Picture-in-Picture is not supported for this video.");
+      return false;
+    }
+
+    if (video.readyState < 2) {
+      setPipMessage("Camera preview is still loading. Wait a moment and try again.");
       return false;
     }
 
@@ -166,17 +242,17 @@ export default function HomePage() {
         return true;
       }
 
-      if (document.pictureInPictureElement && document.exitPictureInPicture) {
-        ignoreNextPiPLeaveRef.current = true;
-        await document.exitPictureInPicture();
-      }
-
       await video.requestPictureInPicture();
+
       setPipMessage(null);
       return true;
     } catch (err) {
       console.error("Picture-in-Picture failed:", err);
-      setPipMessage("Unable to open the pop-out monitor.");
+
+      setPipMessage(
+        "Unable to open the pop-out monitor. Use Chrome or Edge, make sure the camera preview is visible, then click Start Session again.",
+      );
+
       return false;
     }
   };
@@ -185,6 +261,7 @@ export default function HomePage() {
     setPipMessage(null);
 
     if (!baseline) {
+      setCalibrationStatus("info");
       setCalibrationMessage("Please calibrate your posture before starting.");
       return;
     }
@@ -194,26 +271,60 @@ export default function HomePage() {
       return;
     }
 
-    const video = videoRef.current;
-    if (!isRunning || !video?.srcObject) {
-      setPipMessage("Camera is not ready. Please recalibrate posture, then start monitoring.");
-      return;
-    }
-
-    await video.play();
-
-    const didOpenPiP = await openPictureInPicture();
-    if (!didOpenPiP) return;
-
     if (permission === "default") {
       await requestPermission();
     }
 
+    if (!isRunning || !videoRef.current?.srcObject) {
+      await startCamera();
+    }
+
+    const video = videoRef.current;
+
+    if (!video) {
+      setPipMessage("Camera is not ready. Please try again.");
+      return;
+    }
+
+    // Give the video a moment to attach/play after restarting camera
+    if (video.readyState < 2) {
+      await new Promise<void>((resolve) => {
+        const handleCanPlay = () => {
+          video.removeEventListener("canplay", handleCanPlay);
+          resolve();
+        };
+
+        video.addEventListener("canplay", handleCanPlay);
+
+        // fallback so the app does not hang forever
+        setTimeout(resolve, 1000);
+      });
+    }
+
+    if (video.paused) {
+      await video.play();
+    }
+
+    const didOpenPiP = await openPictureInPicture();
+    if (!didOpenPiP) return;
+
+    setCalibrationMessage(null);
+    setCalibrationStatus("idle");
+
+    setShowCameraPreview(false);
     setIsMonitoring(true);
     await startDetection(video);
   };
 
   const stopMonitoring = () => {
+    if (summary.sessionDurationMs < SESSION_TARGET_MS) {
+      const confirmed = window.confirm(
+        "This session has not reached 60 minutes yet. Ending now may make the session incomplete. Do you still want to end the session?",
+      );
+
+      if (!confirmed) return;
+    }
+
     dismissAlert();
     setIsMonitoring(false);
     stopDetection();
@@ -223,12 +334,24 @@ export default function HomePage() {
       ignoreNextPiPLeaveRef.current = true;
       void document.exitPictureInPicture();
     }
+
+    if (summary.sessionDurationMs >= SESSION_TARGET_MS) {
+      setPipMessage("Session ended successfully. You may now export the session data.");
+    } else {
+      setPipMessage(
+        "Session ended early. This session may be incomplete because it did not reach 60 minutes.",
+      );
+    }
   };
+
   const calibratePosture = async () => {
     setCalibrationMessage(null);
+    setCalibrationStatus("idle");
     setPipMessage(null);
+    setShowCameraPreview(true);
 
     if (!isReady) {
+      setCalibrationStatus("info");
       setCalibrationMessage("Pose detection is still loading. Please try again in a moment.");
       return;
     }
@@ -239,11 +362,19 @@ export default function HomePage() {
       await startCamera();
     }
 
-    if (videoRef.current) {
-      await startDetection(videoRef.current);
+    const video = videoRef.current;
+
+    if (!video) {
+      setIsCalibrating(false);
+      setCalibrationStatus("error");
+      setCalibrationMessage("Camera is not ready. Please try again.");
+      return;
     }
 
-    setCalibrationMessage("Sit upright and hold still...");
+    await startDetection(video);
+
+    setCalibrationStatus("info");
+    setCalibrationMessage("Sit upright and hold still for 3 seconds...");
 
     const samples: PostureBaseline[] = [];
 
@@ -259,7 +390,13 @@ export default function HomePage() {
       setIsCalibrating(false);
 
       if (samples.length < 5) {
-        setCalibrationMessage("Calibration failed. Make sure your head and shoulders are visible.");
+        setShowCameraPreview(false);
+        setCalibrationStatus("error");
+        setCalibrationMessage(
+          baseline
+            ? "Recalibration failed. Your last successful calibration is still active."
+            : "Calibration failed. Make sure your head and shoulders are visible.",
+        );
         return;
       }
 
@@ -272,15 +409,16 @@ export default function HomePage() {
         { shoulderTilt: 0, headTilt: 0, headSideOffset: 0 },
       );
 
-      const baseline = {
+      setBaseline({
         shoulderTilt: avg.shoulderTilt / samples.length,
         headTilt: avg.headTilt / samples.length,
         headSideOffset: avg.headSideOffset / samples.length,
-      };
+      });
 
-      setBaseline(baseline);
+      setShowCameraPreview(false);
 
-      setCalibrationMessage("Calibration complete. You can now start monitoring.");
+      setCalibrationStatus("success");
+      setCalibrationMessage("Calibration complete. You can now start the session.");
     }, 3000);
   };
 
@@ -292,25 +430,60 @@ export default function HomePage() {
           Monitor your posture while working using a pop-out window.
         </p>
 
+        <div className="mt-6 rounded-2xl border border-yellow-500/60 bg-yellow-500/10 p-5 text-left">
+          <h2 className="font-semibold text-yellow-700">Session requirement</h2>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            This study requires a continuous session of at least <strong>60 minutes</strong>.
+            Short breaks are allowed, but if no person is detected for 10 continuous minutes,
+            the session will automatically end and must be restarted.
+          </p>
+        </div>
+
+        <div
+          className={
+            showCameraPreview && !isMonitoring
+              ? "mt-6 aspect-video w-full overflow-hidden rounded-2xl border"
+              : "pointer-events-none fixed bottom-4 right-4 aspect-video w-[320px] overflow-hidden opacity-0"
+          }
+        >
+          <video
+            ref={videoRef}
+            className="h-full w-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
+
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+
         {/* INSTRUCTIONS */}
         <div className="mt-6 rounded-2xl border p-5 text-left">
           <h2 className="mb-3 font-bold">Before you start</h2>
 
           <ol className="text-muted-foreground list-decimal space-y-2 pl-4 text-sm">
             <li>
-              Click <strong>Calibrate Posture</strong>
+              Click <strong>Calibrate Posture</strong>.
             </li>
-            <li>Sit upright and hold still for a few seconds</li>
+            <li>The camera preview will appear.</li>
+            <li>Sit upright and hold still for a few seconds.</li>
             <li>
-              Click <strong>Start Monitoring</strong>
+              When calibration completes, click <strong>Start Session</strong>.
             </li>
-            <li>A pop-out window will appear</li>
+            <li>The pop-out monitor will open.</li>
             <li>
-              <strong>Do NOT close it</strong>
+              <strong>Do not close the pop-out monitor.</strong> Closing it will stop the session.
+            </li>
+            <li>
+              If no person is detected for <strong>10 minutes</strong>, the session will
+              automatically end and you will need to start a new session.
             </li>
           </ol>
 
-          <p className="mt-3 text-sm text-red-600">Closing the pop-out will stop monitoring.</p>
+          <p className="mt-3 text-sm text-red-600">
+            Important: closing the pop-out monitor or being away for 10 minutes will end
+            the session.
+          </p>
         </div>
 
         {/* BUTTONS */}
@@ -335,7 +508,7 @@ export default function HomePage() {
               disabled={!isReady}
               className="bg-foreground text-background rounded-full px-8 py-4 text-base font-semibold shadow"
             >
-              Start Monitoring
+              Start Session
             </Button>
           )}
 
@@ -344,7 +517,7 @@ export default function HomePage() {
               onClick={stopMonitoring}
               className="rounded-full border px-8 py-4 text-base font-semibold"
             >
-              Stop Monitoring
+              End Session
             </Button>
           )}
 
@@ -352,14 +525,28 @@ export default function HomePage() {
             onClick={exportSession}
             className="rounded-full border px-6 py-3 text-sm font-medium"
           >
-            Export Data
+            Export Session Data
           </Button>
         </div>
         {calibrationMessage && (
-          <p className="text-muted-foreground mt-4 text-sm">{calibrationMessage}</p>
+          <div
+            className={`mt-4 rounded-xl border p-4 text-sm font-medium ${calibrationStatus === "success"
+              ? "border-green-500 bg-green-500/10 text-green-600"
+              : calibrationStatus === "error"
+                ? "border-red-500 bg-red-500/10 text-red-600"
+                : "border-border text-muted-foreground"
+              }`}
+          >
+            {calibrationMessage}
+          </div>
         )}
         {(pipMessage || error || poseError) && (
           <p className="mt-4 text-sm text-red-600">{pipMessage || error || poseError}</p>
+        )}
+        {noPersonMessage && (
+          <p className="mt-4 rounded-xl border border-yellow-500/60 p-3 text-sm text-yellow-600">
+            {noPersonMessage}
+          </p>
         )}
         {/* STATUS */}
         {isMonitoring && !isCalibrating && (
@@ -390,8 +577,44 @@ export default function HomePage() {
           </div>
         )}
 
+        {isMonitoring && (
+          <div className="mt-6 rounded-2xl border p-4 text-left">
+            <div className="flex items-center justify-between text-sm">
+              <p className="font-semibold">Session progress</p>
+              <p className="text-muted-foreground">
+                {Math.min(Math.round((summary.sessionDurationMs / SESSION_TARGET_MS) * 100), 100)}%
+              </p>
+            </div>
+
+            <div className="bg-muted mt-3 h-3 overflow-hidden rounded-full">
+              <div
+                className="bg-foreground h-full rounded-full"
+                style={{
+                  width: `${Math.min((summary.sessionDurationMs / SESSION_TARGET_MS) * 100, 100)}%`,
+                }}
+              />
+            </div>
+
+            <div className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+              <p>Target: 60 min</p>
+              <p>Current: {Math.round(summary.sessionDurationMs / 60000)} min</p>
+              <p>Good: {Math.round(summary.goodPostureMs / 60000)} min</p>
+              <p>Bad: {Math.round(summary.badPostureMs / 60000)} min</p>
+            </div>
+
+            <p
+              className={`mt-3 text-sm font-medium ${summary.sessionDurationMs >= SESSION_TARGET_MS ? "text-green-600" : "text-yellow-600"
+                }`}
+            >
+              {summary.sessionDurationMs >= SESSION_TARGET_MS
+                ? "Session requirement met."
+                : "Session requirement not yet met."}
+            </p>
+          </div>
+        )}
+
         {/* ALERT */}
-        {showAlert && (
+        {showAlert && isMonitoring && (
           <div className="mt-6 rounded-xl border border-red-500 p-4">
             <p className="font-semibold text-red-600">Fix your posture</p>
             <button onClick={dismissAlert} className="text-sm underline">
@@ -399,12 +622,6 @@ export default function HomePage() {
             </button>
           </div>
         )}
-
-        {/* HIDDEN VIDEO (IMPORTANT) */}
-        <div className="pointer-events-none fixed -left-px top-0 h-px w-px overflow-hidden opacity-0">
-          <video ref={videoRef} playsInline muted autoPlay />
-          <canvas ref={canvasRef} />
-        </div>
       </Section>
 
       <div className="border-border/60 mt-26 mb-5 w-full border-b" />
