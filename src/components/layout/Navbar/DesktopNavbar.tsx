@@ -9,10 +9,6 @@ type DesktopNavbarProps = {
   navLinks: NavLink[];
   isDark: boolean;
   toggleTheme: () => void;
-  authLoading: boolean;
-  isLoggedIn: boolean;
-  isAdmin: boolean;
-  onLogout: () => void;
   currentPath: string;
 };
 

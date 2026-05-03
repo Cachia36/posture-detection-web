@@ -5,7 +5,6 @@ import Navbar from "@/components/layout/Navbar/Navbar";
 import Script from "next/script";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
-import { getServerSession } from "@/lib/auth/server/getServerSession";
 
 export const dynamic = "force-dynamic";
 
@@ -59,11 +58,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const themeCookie = cookieStore.get("app_theme")?.value;
   const effectiveTheme = themeCookie === "dark" ? "dark" : "light";
 
-  const { user } = await getServerSession();
-
-  const isLoggedIn = Boolean(user);
-  const isAdmin = user?.role === "admin";
-
   return (
     <html lang="en" suppressHydrationWarning data-theme={effectiveTheme}>
       <head>
@@ -77,7 +71,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
       >
         <div className="flex min-h-screen flex-col">
-          <Navbar isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
           <main className="flex flex-1 flex-col">{children}</main>
         </div>
       </body>

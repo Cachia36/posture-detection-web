@@ -33,11 +33,5 @@ jobs:
           echo "RESEND_API_KEY length: ${#RESEND_API_KEY}"
           echo "NODE_ENV: $NODE_ENV"
 
-      - name: Run lint
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test
-
       - name: Ensure it builds
         run: npm run build

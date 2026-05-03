@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import type { PoseLandmarkerResult } from "@mediapipe/tasks-vision";
 
+export type PostureMetrics = {
+  shoulderTilt: number;
+  headTilt: number;
+  headSideOffset: number;
+};
+
+export type PostureBaseline = PostureMetrics;
+
 export type PostureAnalysisResult =
   | {
       label: "no-pose";
@@ -10,16 +18,16 @@ export type PostureAnalysisResult =
   | {
       label: "good" | "bad";
       reasons: string[];
-      metrics: {
-        shoulderTilt: number;
-        headTilt: number;
-        headSideOffset: number;
-      };
+      metrics: PostureMetrics;
     };
 
-export function usePostureAnalysis(result: PoseLandmarkerResult | null): PostureAnalysisResult {
+export function usePostureAnalysis(
+  result: PoseLandmarkerResult | null,
+  baseline?: PostureBaseline | null,
+): PostureAnalysisResult {
   return useMemo(() => {
     const pose = result?.landmarks?.[0];
+
     if (!pose) {
       return {
         label: "no-pose",
@@ -61,13 +69,27 @@ export function usePostureAnalysis(result: PoseLandmarkerResult | null): Posture
 
     const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
 
-    const shoulderTilt = Math.abs(leftShoulder.y - rightShoulder.y);
-    const headTilt = Math.abs(leftEye.y - rightEye.y);
-    const headSideOffset = Math.abs(nose.x - shoulderMidX);
+    const metrics: PostureMetrics = {
+      shoulderTilt: Math.abs(leftShoulder.y - rightShoulder.y),
+      headTilt: Math.abs(leftEye.y - rightEye.y),
+      headSideOffset: Math.abs(nose.x - shoulderMidX),
+    };
 
-    const isShoulderTilted = shoulderTilt > 0.035;
-    const isHeadTilted = headTilt > 0.02;
-    const isHeadOffCenter = headSideOffset > 0.04;
+    const shoulderTiltValue = baseline
+      ? Math.abs(metrics.shoulderTilt - baseline.shoulderTilt)
+      : metrics.shoulderTilt;
+
+    const headTiltValue = baseline
+      ? Math.abs(metrics.headTilt - baseline.headTilt)
+      : metrics.headTilt;
+
+    const headSideOffsetValue = baseline
+      ? Math.abs(metrics.headSideOffset - baseline.headSideOffset)
+      : metrics.headSideOffset;
+
+    const isShoulderTilted = shoulderTiltValue > 0.025;
+    const isHeadTilted = headTiltValue > 0.018;
+    const isHeadOffCenter = headSideOffsetValue > 0.03;
 
     const reasons: string[] = [];
 
@@ -78,11 +100,7 @@ export function usePostureAnalysis(result: PoseLandmarkerResult | null): Posture
     return {
       label: reasons.length > 0 ? "bad" : "good",
       reasons,
-      metrics: {
-        shoulderTilt,
-        headTilt,
-        headSideOffset,
-      },
+      metrics,
     };
-  }, [result]);
+  }, [result, baseline]);
 }

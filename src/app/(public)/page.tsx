@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { PageShell } from "@/components/layout/PageShell";
 import { Section } from "@/components/ui/Section";
 import { FeatureCard } from "@/components/layout/FeatureCard";
-import { PostureStatusCard } from "@/components/posture/PostureStatusCard";
 import { useWebcam } from "@/hooks/useWebcam";
 import { usePoseLandmarker } from "@/hooks/usePoseLandmarker";
-import { usePostureAnalysis } from "@/hooks/usePostureAnalysis";
+import { usePostureAnalysis, type PostureBaseline } from "@/hooks/usePostureAnalysis";
 import { usePoseOverlay } from "@/hooks/usePoseOverlay";
 import { useStablePosture } from "@/hooks/useStablePosture";
 import { useBadPostureAlert } from "@/hooks/useBadPostureAlert";
@@ -56,13 +55,19 @@ function playBeep() {
 
 export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const latestMetricsRef = useRef<PostureBaseline | null>(null);
+  const ignoreNextPiPLeaveRef = useRef(false);
   const [pipMessage, setPipMessage] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<PostureBaseline | null>(null);
+  const [calibrationMessage, setCalibrationMessage] = useState<string | null>(null);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(false);
 
   const { videoRef, isRunning, error, startCamera, stopCamera } = useWebcam();
 
   const { isReady, result, error: poseError, startDetection, stopDetection } = usePoseLandmarker();
 
-  const rawPosture = usePostureAnalysis(result);
+  const rawPosture = usePostureAnalysis(result, baseline);
   const posture = useStablePosture(rawPosture, 700);
   const ALERT_THRESHOLD_MS = 5000;
   const ALERT_REPEAT_MS = 15000;
@@ -72,18 +77,22 @@ export default function HomePage() {
     ALERT_REPEAT_MS,
   );
   const { permission, requestPermission, showNotification } = useBrowserNotification();
-  const { summary, exportSession } = useSessionTracking(
+  const { exportSession } = useSessionTracking(
     posture,
     alertCount,
-    isRunning,
+    isMonitoring,
     ALERT_THRESHOLD_MS,
   );
 
   usePoseOverlay(canvasRef, videoRef, result);
 
   useEffect(() => {
+    latestMetricsRef.current = rawPosture.metrics;
+  }, [rawPosture.metrics]);
+
+  useEffect(() => {
     const video = videoRef.current;
-    if (!isRunning || !video) return;
+    if (!isRunning || (!isMonitoring && !isCalibrating) || !video) return;
 
     const handlePlaying = () => {
       void startDetection(video);
@@ -99,7 +108,7 @@ export default function HomePage() {
       video.removeEventListener("playing", handlePlaying);
       stopDetection();
     };
-  }, [isRunning, startDetection, stopDetection, videoRef]);
+  }, [isCalibrating, isMonitoring, isRunning, startDetection, stopDetection, videoRef]);
 
   useEffect(() => {
     return () => {
@@ -121,8 +130,14 @@ export default function HomePage() {
 
   useEffect(() => {
     const handleLeavePiP = () => {
-      if (!isRunning) return;
+      if (ignoreNextPiPLeaveRef.current) {
+        ignoreNextPiPLeaveRef.current = false;
+        return;
+      }
 
+      if (!isMonitoring) return;
+
+      setIsMonitoring(false);
       stopDetection();
       stopCamera();
       setPipMessage(
@@ -135,224 +150,260 @@ export default function HomePage() {
     return () => {
       document.removeEventListener("leavepictureinpicture", handleLeavePiP);
     };
-  }, [isRunning, stopCamera, stopDetection]);
+  }, [isMonitoring, stopCamera, stopDetection]);
 
   const openPictureInPicture = async () => {
     const video = videoRef.current;
 
     if (!video?.requestPictureInPicture) {
       setPipMessage("Picture-in-Picture is not supported in this browser.");
-      return;
+      return false;
     }
 
     try {
+      if (document.pictureInPictureElement === video) {
+        setPipMessage(null);
+        return true;
+      }
+
       if (document.pictureInPictureElement && document.exitPictureInPicture) {
+        ignoreNextPiPLeaveRef.current = true;
         await document.exitPictureInPicture();
-        return;
       }
 
       await video.requestPictureInPicture();
       setPipMessage(null);
+      return true;
     } catch (err) {
       console.error("Picture-in-Picture failed:", err);
       setPipMessage("Unable to open the pop-out monitor.");
+      return false;
     }
   };
 
   const startMonitoring = async () => {
     setPipMessage(null);
 
+    if (!baseline) {
+      setCalibrationMessage("Please calibrate your posture before starting.");
+      return;
+    }
+
+    if (!isReady) {
+      setPipMessage("Pose detection is still loading. Please try again in a moment.");
+      return;
+    }
+
+    const video = videoRef.current;
+    if (!isRunning || !video?.srcObject) {
+      setPipMessage("Camera is not ready. Please recalibrate posture, then start monitoring.");
+      return;
+    }
+
+    await video.play();
+
+    const didOpenPiP = await openPictureInPicture();
+    if (!didOpenPiP) return;
+
     if (permission === "default") {
       await requestPermission();
     }
 
-    await startCamera();
-
-    setTimeout(() => {
-      void openPictureInPicture();
-    }, 500);
+    setIsMonitoring(true);
+    await startDetection(video);
   };
 
   const stopMonitoring = () => {
     dismissAlert();
+    setIsMonitoring(false);
     stopDetection();
     stopCamera();
 
     if (document.pictureInPictureElement && document.exitPictureInPicture) {
+      ignoreNextPiPLeaveRef.current = true;
       void document.exitPictureInPicture();
     }
+  };
+  const calibratePosture = async () => {
+    setCalibrationMessage(null);
+    setPipMessage(null);
+
+    if (!isReady) {
+      setCalibrationMessage("Pose detection is still loading. Please try again in a moment.");
+      return;
+    }
+
+    setIsCalibrating(true);
+
+    if (!isRunning) {
+      await startCamera();
+    }
+
+    if (videoRef.current) {
+      await startDetection(videoRef.current);
+    }
+
+    setCalibrationMessage("Sit upright and hold still...");
+
+    const samples: PostureBaseline[] = [];
+
+    const interval = setInterval(() => {
+      if (latestMetricsRef.current) {
+        samples.push(latestMetricsRef.current);
+      }
+    }, 100);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      stopDetection();
+      setIsCalibrating(false);
+
+      if (samples.length < 5) {
+        setCalibrationMessage("Calibration failed. Make sure your head and shoulders are visible.");
+        return;
+      }
+
+      const avg = samples.reduce(
+        (acc, cur) => ({
+          shoulderTilt: acc.shoulderTilt + cur.shoulderTilt,
+          headTilt: acc.headTilt + cur.headTilt,
+          headSideOffset: acc.headSideOffset + cur.headSideOffset,
+        }),
+        { shoulderTilt: 0, headTilt: 0, headSideOffset: 0 },
+      );
+
+      const baseline = {
+        shoulderTilt: avg.shoulderTilt / samples.length,
+        headTilt: avg.headTilt / samples.length,
+        headSideOffset: avg.headSideOffset / samples.length,
+      };
+
+      setBaseline(baseline);
+
+      setCalibrationMessage("Calibration complete. You can now start monitoring.");
+    }, 3000);
   };
 
   return (
     <PageShell>
-      <Section className="max-w-7xl">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0 space-y-4">
-            <div
-              className={`bg-muted border-border relative aspect-video min-h-[420px] w-full overflow-hidden rounded-2xl border shadow-sm ${
-                showAlert ? "animate-pulse ring-4 ring-red-500 ring-offset-2" : ""
-              }`}
+      <Section className="max-w-3xl text-center">
+        <h1 className="text-3xl font-semibold">Posture Monitor</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Monitor your posture while working using a pop-out window.
+        </p>
+
+        {/* INSTRUCTIONS */}
+        <div className="mt-6 rounded-2xl border p-5 text-left">
+          <h2 className="mb-3 font-bold">Before you start</h2>
+
+          <ol className="text-muted-foreground list-decimal space-y-2 pl-4 text-sm">
+            <li>
+              Click <strong>Calibrate Posture</strong>
+            </li>
+            <li>Sit upright and hold still for a few seconds</li>
+            <li>
+              Click <strong>Start Monitoring</strong>
+            </li>
+            <li>A pop-out window will appear</li>
+            <li>
+              <strong>Do NOT close it</strong>
+            </li>
+          </ol>
+
+          <p className="mt-3 text-sm text-red-600">Closing the pop-out will stop monitoring.</p>
+        </div>
+
+        {/* BUTTONS */}
+        <div className="mt-6 flex justify-center gap-4">
+          <Button
+            onClick={calibratePosture}
+            disabled={isCalibrating || !isReady}
+            className="rounded-full border px-6 py-3 text-sm font-medium"
+          >
+            {isCalibrating
+              ? "Calibrating..."
+              : !isReady
+                ? "Loading Detection..."
+                : baseline
+                  ? "Recalibrate Posture"
+                  : "Calibrate Posture"}
+          </Button>
+
+          {baseline && !isMonitoring && !isCalibrating && (
+            <Button
+              onClick={startMonitoring}
+              disabled={!isReady}
+              className="bg-foreground text-background rounded-full px-8 py-4 text-base font-semibold shadow"
             >
-              <video
-                ref={videoRef}
-                className="absolute inset-0 h-full w-full object-cover"
-                playsInline
-                muted
-                autoPlay
-              />
+              Start Monitoring
+            </Button>
+          )}
 
-              <canvas
-                ref={canvasRef}
-                className="pointer-events-none absolute inset-0 h-full w-full"
-              />
+          {isMonitoring && !isCalibrating && (
+            <Button
+              onClick={stopMonitoring}
+              className="rounded-full border px-8 py-4 text-base font-semibold"
+            >
+              Stop Monitoring
+            </Button>
+          )}
 
-              {!isRunning && (
-                <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center text-center text-sm">
-                  <p className="font-medium">Webcam preview will appear here</p>
-                  <p className="mt-1 text-xs">Start monitoring to enable posture detection.</p>
-                </div>
-              )}
+          <Button
+            onClick={exportSession}
+            className="rounded-full border px-6 py-3 text-sm font-medium"
+          >
+            Export Data
+          </Button>
+        </div>
+        {calibrationMessage && (
+          <p className="text-muted-foreground mt-4 text-sm">{calibrationMessage}</p>
+        )}
+        {(pipMessage || error || poseError) && (
+          <p className="mt-4 text-sm text-red-600">{pipMessage || error || poseError}</p>
+        )}
+        {/* STATUS */}
+        {isMonitoring && !isCalibrating && (
+          <div className="mt-6 grid grid-cols-3 gap-4">
+            <div className="rounded-xl border p-3">
+              <p className="text-muted-foreground text-xs">Camera</p>
+              <p className="font-semibold text-green-600">Active</p>
+            </div>
 
-              {posture.label !== "no-pose" && (
-                <div
-                  className={`absolute top-4 left-4 rounded-full px-4 py-2 text-sm font-medium text-white shadow ${
-                    posture.label === "good" ? "bg-green-600" : "bg-red-600"
+            <div className="rounded-xl border p-3">
+              <p className="text-muted-foreground text-xs">Person</p>
+              <p className="font-semibold">{posture.label === "no-pose" ? "No" : "Yes"}</p>
+            </div>
+
+            <div className="rounded-xl border p-3">
+              <p className="text-muted-foreground text-xs">Posture</p>
+              <p
+                className={`font-semibold ${posture.label === "good"
+                  ? "text-green-600"
+                  : posture.label === "bad"
+                    ? "text-red-600"
+                    : ""
                   }`}
-                >
-                  {posture.label === "good" ? "Good posture" : "Bad posture detected"}
-                </div>
-              )}
-
-              {showAlert && (
-                <div className="bg-background absolute right-4 bottom-4 max-w-sm rounded-2xl border border-red-500 p-4 shadow-lg">
-                  <p className="font-semibold text-red-600">Posture needs adjustment</p>
-                  <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                    Poor posture has been detected for a while. Sit upright and realign your head
-                    and shoulders.
-                  </p>
-
-                  <button
-                    onClick={dismissAlert}
-                    className="mt-3 text-sm font-medium text-red-600 underline-offset-4 hover:underline"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {(error || poseError || pipMessage) && (
-              <div className="space-y-2">
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                {poseError && <p className="text-sm text-red-500">{poseError}</p>}
-                {pipMessage && (
-                  <p className="rounded-xl border border-yellow-500/60 p-3 text-sm text-yellow-600">
-                    {pipMessage}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4">
-              <div>
-                <p className="text-sm font-semibold">Monitoring controls</p>
-                <p className="text-muted-foreground text-xs">
-                  Start monitoring opens the pop-out window automatically.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {!isRunning ? (
-                  <Button
-                    onClick={startMonitoring}
-                    className="bg-foreground text-background rounded-full px-6 py-3 text-sm font-medium shadow"
-                  >
-                    Start Monitoring
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={stopMonitoring}
-                    className="rounded-full border px-6 py-3 text-sm font-medium"
-                  >
-                    Stop Monitoring
-                  </Button>
-                )}
-
-                <Button
-                  onClick={exportSession}
-                  className="rounded-full border px-6 py-3 text-sm font-medium"
-                >
-                  Export Data
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-red-500/70 p-4">
-              <p className="text-sm font-semibold text-red-600">
-                Important: keep the pop-out monitor open.
-              </p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Monitoring will stop if the pop-out window is closed. Keep it open while using your
-                laptop so alerts can continue working.
+              >
+                {posture.label}
               </p>
             </div>
           </div>
+        )}
 
-          <aside className="w-full min-w-0 space-y-4">
-            <div className="rounded-2xl border border-red-500/70 p-4 text-sm">
-              <h3 className="font-semibold text-red-600">Important Monitoring Notice</h3>
-              <p className="text-muted-foreground mt-2 leading-relaxed">
-                This system requires the pop-out monitor to remain open. If you close it, posture
-                monitoring will stop and alerts will no longer be triggered.
-              </p>
-            </div>
+        {/* ALERT */}
+        {showAlert && (
+          <div className="mt-6 rounded-xl border border-red-500 p-4">
+            <p className="font-semibold text-red-600">Fix your posture</p>
+            <button onClick={dismissAlert} className="text-sm underline">
+              Dismiss
+            </button>
+          </div>
+        )}
 
-            <div className="rounded-2xl border p-4 text-sm">
-              <h3 className="mb-2 font-semibold">How to Use</h3>
-              <ol className="text-muted-foreground list-decimal space-y-1 pl-4">
-                <li>
-                  Click <strong>Start Monitoring</strong>.
-                </li>
-                <li>Allow camera and notification permissions.</li>
-                <li>
-                  Keep the pop-out monitor open. <strong>Monitoring stops if it is closed.</strong>
-                </li>
-                <li>Sit naturally facing the camera.</li>
-                <li>Ensure your head and shoulders are visible.</li>
-                <li>Alerts appear and sound if poor posture is sustained.</li>
-              </ol>
-            </div>
-
-            <PostureStatusCard posture={posture} />
-
-            <div className="rounded-2xl border p-4 text-sm">
-              <h3 className="mb-2 font-semibold">Technical Status</h3>
-              <div className="text-muted-foreground space-y-1">
-                <p>Pose model: {isReady ? "Ready" : "Loading..."}</p>
-                <p>Landmarks detected: {result?.landmarks?.[0]?.length ?? 0}</p>
-                <p>Camera: {isRunning ? "Running" : "Stopped"}</p>
-              </div>
-
-              {posture.label !== "no-pose" && posture.metrics && (
-                <div className="text-muted-foreground mt-3 space-y-1 border-t pt-3">
-                  <p>Shoulder tilt: {posture.metrics.shoulderTilt.toFixed(3)}</p>
-                  <p>Head tilt: {posture.metrics.headTilt.toFixed(3)}</p>
-                  <p>Head side offset: {posture.metrics.headSideOffset.toFixed(3)}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border p-4 text-sm">
-              <h3 className="mb-2 font-semibold">Session Summary</h3>
-              <div className="text-muted-foreground space-y-1">
-                <p>Total duration: {Math.round(summary.sessionDurationMs / 1000)}s</p>
-                <p>Good posture: {Math.round(summary.goodPostureMs / 1000)}s</p>
-                <p>Bad posture: {Math.round(summary.badPostureMs / 1000)}s</p>
-                <p>Poor posture detections: {summary.poorPostureDetections}</p>
-                <p>Alerts triggered: {summary.alertsTriggered}</p>
-              </div>
-            </div>
-          </aside>
+        {/* HIDDEN VIDEO (IMPORTANT) */}
+        <div className="pointer-events-none fixed -left-px top-0 h-px w-px overflow-hidden opacity-0">
+          <video ref={videoRef} playsInline muted autoPlay />
+          <canvas ref={canvasRef} />
         </div>
       </Section>
 
