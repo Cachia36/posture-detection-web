@@ -66,6 +66,8 @@ export default function HomePage() {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
+  const [sessionCompleteMessageShown, setSessionCompleteMessageShown] = useState(false);
+  const [hasSessionStarted, setHasSessionStarted] = useState(false);
 
   const { videoRef, isRunning, error, startCamera, stopCamera } = useWebcam();
 
@@ -88,6 +90,9 @@ export default function HomePage() {
     alertCount,
     isMonitoring,
     ALERT_THRESHOLD_MS,
+    ALERT_REPEAT_MS,
+    SESSION_TARGET_MS,
+    NO_PERSON_TIMEOUT_MS,
   );
 
   usePoseOverlay(canvasRef, videoRef, result);
@@ -138,6 +143,32 @@ export default function HomePage() {
       "Poor posture has been detected. Sit upright and realign your head and shoulders.",
     );
   }, [alertCount, showNotification]);
+
+  useEffect(() => {
+    if (!isMonitoring) return;
+    if (sessionCompleteMessageShown) return;
+
+    if (summary.sessionDurationMs >= SESSION_TARGET_MS) {
+      setSessionCompleteMessageShown(true);
+
+      setPipMessage(
+        "Session requirement met. You can now end the session and export your data.",
+      );
+
+      playBeep();
+
+      showNotification(
+        "Session requirement met",
+        "Your 60-minute posture monitoring session is complete. You can now end the session and export your data.",
+      );
+    }
+  }, [
+    isMonitoring,
+    summary.sessionDurationMs,
+    sessionCompleteMessageShown,
+    SESSION_TARGET_MS,
+    showNotification,
+  ]);
 
   useEffect(() => {
     const handleLeavePiP = () => {
@@ -310,6 +341,8 @@ export default function HomePage() {
     setCalibrationStatus("idle");
 
     setShowCameraPreview(false);
+    setSessionCompleteMessageShown(false);
+    setHasSessionStarted(true);
     setIsMonitoring(true);
     await startDetection(video);
   };
@@ -420,6 +453,29 @@ export default function HomePage() {
     }, 3000);
   };
 
+  const formatMinutes = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+
+    if (minutes <= 0) return `${seconds}s`;
+
+    return `${minutes}m ${seconds}s`;
+  };
+
+  const totalTrackedMs =
+    summary.goodPostureMs + summary.badPostureMs + summary.noPoseMs;
+
+  const goodPercent =
+    totalTrackedMs > 0 ? (summary.goodPostureMs / totalTrackedMs) * 100 : 0;
+
+  const badPercent =
+    totalTrackedMs > 0 ? (summary.badPostureMs / totalTrackedMs) * 100 : 0;
+
+  const noPosePercent =
+    totalTrackedMs > 0 ? (summary.noPoseMs / totalTrackedMs) * 100 : 0;
+
+  const sessionIsValid = summary.sessionDurationMs >= SESSION_TARGET_MS;
+
   return (
     <PageShell>
       <Section className="max-w-3xl text-center">
@@ -519,12 +575,14 @@ export default function HomePage() {
             </Button>
           )}
 
-          <Button
-            onClick={exportSession}
-            className="rounded-full border px-6 py-3 text-sm font-medium"
-          >
-            Export Session Data
-          </Button>
+          {hasSessionStarted && (
+            <Button
+              onClick={exportSession}
+              className="rounded-full border px-6 py-3 text-sm font-medium"
+            >
+              Export Session Data
+            </Button>
+          )}
         </div>
         {calibrationMessage && (
           <div
@@ -546,6 +604,106 @@ export default function HomePage() {
             {noPersonMessage}
           </p>
         )}
+
+        {hasSessionStarted && !isMonitoring && summary.sessionDurationMs > 0 && (
+          <div className="mt-6 mb-26 rounded-2xl border p-5 text-left">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Session Summary</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Review the session result before exporting the data.
+                </p>
+              </div>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${sessionIsValid
+                  ? "bg-green-500/10 text-green-600"
+                  : "bg-yellow-500/10 text-yellow-600"
+                  }`}
+              >
+                {sessionIsValid ? "Valid session" : "Incomplete session"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border p-3">
+                <p className="text-muted-foreground text-xs">Duration</p>
+                <p className="mt-1 font-semibold">{formatMinutes(summary.sessionDurationMs)}</p>
+              </div>
+
+              <div className="rounded-xl border p-3">
+                <p className="text-muted-foreground text-xs">Good posture</p>
+                <p className="mt-1 font-semibold text-green-600">
+                  {formatMinutes(summary.goodPostureMs)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-3">
+                <p className="text-muted-foreground text-xs">Bad posture</p>
+                <p className="mt-1 font-semibold text-red-600">
+                  {formatMinutes(summary.badPostureMs)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-3">
+                <p className="text-muted-foreground text-xs">Alerts</p>
+                <p className="mt-1 font-semibold">{summary.alertsTriggered}</p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <p className="font-medium">Posture breakdown</p>
+                <p className="text-muted-foreground">
+                  No-pose: {formatMinutes(summary.noPoseMs)}
+                </p>
+              </div>
+
+              <div className="flex h-4 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="bg-green-500"
+                  style={{ width: `${goodPercent}%` }}
+                  title={`Good posture: ${goodPercent.toFixed(1)}%`}
+                />
+                <div
+                  className="bg-red-500"
+                  style={{ width: `${badPercent}%` }}
+                  title={`Bad posture: ${badPercent.toFixed(1)}%`}
+                />
+                <div
+                  className="bg-yellow-500"
+                  style={{ width: `${noPosePercent}%` }}
+                  title={`No-pose: ${noPosePercent.toFixed(1)}%`}
+                />
+              </div>
+
+              <div className="text-muted-foreground mt-3 flex flex-wrap gap-4 text-xs">
+                <span>Good: {goodPercent.toFixed(1)}%</span>
+                <span>Bad: {badPercent.toFixed(1)}%</span>
+                <span>No-pose: {noPosePercent.toFixed(1)}%</span>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border p-4">
+              <p className="text-sm font-medium">Detected posture issues</p>
+
+              <div className="text-muted-foreground mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+                <p>Head tilted: {summary.issueCounts.headTilted}</p>
+                <p>Head off-centre: {summary.issueCounts.headOffCenter}</p>
+                <p>Uneven shoulders: {summary.issueCounts.unevenShoulders}</p>
+              </div>
+            </div>
+
+            {!sessionIsValid && (
+              <p className="mt-4 text-sm text-yellow-600">
+                This session did not reach the required 60 minutes. It can still be exported, but it
+                will be marked as incomplete.
+              </p>
+            )}
+          </div>
+
+        )}
+
         {/* STATUS */}
         {isMonitoring && !isCalibrating && (
           <div className="mt-6 grid grid-cols-3 gap-4">

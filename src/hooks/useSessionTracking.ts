@@ -54,6 +54,9 @@ export function useSessionTracking(
   alertCount: number,
   isRunning: boolean,
   alertThresholdMs: number,
+  alertRepeatMs: number,
+  sessionTargetMs: number,
+  noPersonTimeoutMs: number
 ) {
   const [summary, setSummary] = useState<SessionSummary>(emptySummary());
   const [postureLog, setPostureLog] = useState<PostureLogEntry[]>([]);
@@ -252,6 +255,9 @@ export function useSessionTracking(
   }, [isRunning, buildSummary]);
 
   const exportSession = useCallback(() => {
+    const latestSummary = buildSummary();
+    const requirementMet = latestSummary.sessionDurationMs >= sessionTargetMs;
+
     const exportData = {
       metadata: {
         sessionStart: sessionStartRef.current
@@ -259,13 +265,27 @@ export function useSessionTracking(
           : null,
         sessionEnd: sessionEndRef.current ? new Date(sessionEndRef.current).toISOString() : null,
         exportedAt: new Date().toISOString(),
+
         alertThresholdMs,
+        alertRepeatMs,
+        sessionTargetMs,
+        noPersonTimeoutMs,
+
+        sessionValidity: {
+          requiredDurationMs: sessionTargetMs,
+          actualDurationMs: latestSummary.sessionDurationMs,
+          metRequirement: requirementMet,
+          status: requirementMet ? "valid" : "incomplete",
+        },
       },
-      summary: buildSummary(),
+
+      summary: latestSummary,
+
       postureLog: postureLog.map((entry) => ({
         ...entry,
         time: new Date(entry.timestamp).toISOString(),
       })),
+
       alertLog: alertLog.map((entry) => ({
         ...entry,
         time: new Date(entry.timestamp).toISOString(),
@@ -280,11 +300,19 @@ export function useSessionTracking(
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = `posture-session-${Date.now()}.json`;
+    link.download = `posture-session-${requirementMet ? "valid" : "incomplete"}-${Date.now()}.json`;
     link.click();
 
     URL.revokeObjectURL(url);
-  }, [alertThresholdMs, buildSummary, postureLog, alertLog]);
+  }, [
+    alertThresholdMs,
+    alertRepeatMs,
+    sessionTargetMs,
+    noPersonTimeoutMs,
+    buildSummary,
+    postureLog,
+    alertLog,
+  ]);
 
   return {
     postureLog,
