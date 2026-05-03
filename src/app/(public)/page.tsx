@@ -2,11 +2,9 @@
 
 import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { PageShell } from "@/components/layout/PageShell";
 import { Section } from "@/components/ui/Section";
-import { FeatureCard } from "@/components/layout/FeatureCard";
 import { useWebcam } from "@/hooks/useWebcam";
 import { usePoseLandmarker } from "@/hooks/usePoseLandmarker";
 import { usePostureAnalysis, type PostureBaseline } from "@/hooks/usePostureAnalysis";
@@ -622,78 +620,6 @@ export default function HomePage() {
             </button>
           </div>
         )}
-      </Section>
-
-      <div className="border-border/60 mt-26 mb-5 w-full border-b" />
-
-      <Section>
-        <h2 className="text-center text-2xl font-semibold">About the Project</h2>
-        <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          This project presents a browser-based posture monitoring system that uses computer vision
-          to analyse sitting posture in real time through a standard webcam. The system was
-          developed as part of an undergraduate dissertation in Software Development and
-          investigates whether accessible, browser-based tools can help increase awareness of
-          everyday sitting posture.
-        </p>
-      </Section>
-
-      <Section>
-        <h2 className="text-center text-2xl font-semibold">About the Study</h2>
-        <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          The study evaluates the feasibility and usability of real-time posture detection delivered
-          directly through a web application. It explores how reliably posture can be analysed using
-          webcam-based body landmark detection and how users respond to real-time visual feedback
-          about their sitting posture.
-        </p>
-      </Section>
-
-      <div className="border-border/60 mt-26 mb-5 w-full border-b" />
-
-      <Section className="grid gap-8 md:grid-cols-3">
-        <FeatureCard title="Webcam-Based Input">
-          The application uses a webcam feed directly in the browser to observe posture during
-          sitting.
-        </FeatureCard>
-
-        <FeatureCard title="Real-Time Analysis">
-          Computer vision techniques are used to estimate body positioning and identify posture
-          patterns while the user is seated.
-        </FeatureCard>
-
-        <FeatureCard title="Immediate Feedback">
-          The system is designed to provide real-time posture insights that can improve awareness
-          and support better ergonomic behaviour.
-        </FeatureCard>
-      </Section>
-
-      <div className="border-border/60 mt-26 mb-5 w-full border-b" />
-
-      <Section>
-        <h2 className="text-center text-2xl font-semibold">Why Participation Matters</h2>
-        <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          Participation helps support academic research into practical and accessible ergonomic
-          tools. Your involvement contributes to evaluating whether browser-based posture detection
-          can be useful, user-friendly, and effective in real-world settings.
-        </p>
-      </Section>
-
-      <Section>
-        <h2 className="text-center text-2xl font-semibold">Privacy and Ethics</h2>
-        <p className="text-muted-foreground text-center text-sm leading-relaxed sm:text-base">
-          Webcam frames are processed locally in the browser for real-time posture analysis. The
-          application does not record, store, or upload webcam video. This project is intended for
-          academic research and demonstration purposes and should not be considered a medical or
-          diagnostic tool.
-        </p>
-
-        <div className="mb-26 pt-4 text-center">
-          <Link
-            href="/privacy"
-            className="text-primary font-medium underline-offset-4 hover:underline"
-          >
-            Read the privacy information
-          </Link>
-        </div>
       </Section>
     </PageShell>
   );

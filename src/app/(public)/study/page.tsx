@@ -23,6 +23,16 @@ export default function StudyPage() {
       <div className="border-border/60 mt-26 mb-5 w-full border-b" />
 
       <Section>
+        <h2 className="text-2xl font-semibold">About the Project</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
+          This project presents a browser-based posture monitoring system that uses computer vision
+          to analyse sitting posture in real time through a standard webcam. The system was
+          developed as part of an undergraduate dissertation in Software Development and explores
+          whether accessible browser-based tools can support ergonomic awareness during desk work.
+        </p>
+      </Section>
+
+      <Section>
         <h2 className="text-2xl font-semibold">Purpose of the Study</h2>
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
           This study investigates whether webcam-based posture monitoring can be implemented
@@ -37,7 +47,16 @@ export default function StudyPage() {
         <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
           Participants use the application through their browser while sitting normally in front of
           their computer. The system analyses upper-body posture in real time using the webcam and
-          provides immediate feedback indicating whether posture appears balanced or misaligned.
+          provides feedback when poor posture is sustained.
+        </p>
+      </Section>
+
+      <Section>
+        <h2 className="text-2xl font-semibold">Session Requirement</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
+          A valid study session requires at least 60 minutes of monitoring. Short breaks are
+          allowed, but if no person is detected for 10 continuous minutes, the session automatically
+          ends and must be restarted.
         </p>
       </Section>
 
