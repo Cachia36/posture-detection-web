@@ -25,7 +25,6 @@ export function useBadPostureAlert(
 
       queueMicrotask(() => {
         setShowAlert(false);
-        setAlertCount(0);
       });
 
       return;

@@ -83,7 +83,7 @@ export function usePoseLandmarker(): UsePoseLandmarkerReturn {
         const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
+              "/models/pose_landmarker_lite.task",
           },
           runningMode: "VIDEO",
           numPoses: 1,

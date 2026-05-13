@@ -95,6 +95,11 @@ export default function HomePage() {
     NO_PERSON_TIMEOUT_MS,
   );
 
+  const postureReasons =
+    posture.label === "bad" && posture.reasons.length > 0
+      ? posture.reasons.join(", ")
+      : "";
+
   usePoseOverlay(canvasRef, videoRef, result);
 
   useEffect(() => {
@@ -140,9 +145,11 @@ export default function HomePage() {
 
     showNotification(
       "Posture needs adjustment",
-      "Poor posture has been detected. Sit upright and realign your head and shoulders.",
+      postureReasons
+        ? `Poor posture detected: ${postureReasons}.`
+        : "Poor posture has been detected. Sit upright and realign your head and shoulders.",
     );
-  }, [alertCount, showNotification]);
+  }, [alertCount, showNotification, postureReasons]);
 
   useEffect(() => {
     if (!isMonitoring) return;
@@ -719,6 +726,7 @@ export default function HomePage() {
 
             <div className="rounded-xl border p-3">
               <p className="text-muted-foreground text-xs">Posture</p>
+
               <p
                 className={`font-semibold ${posture.label === "good"
                   ? "text-green-600"
@@ -727,8 +735,18 @@ export default function HomePage() {
                     : ""
                   }`}
               >
-                {posture.label}
+                {posture.label === "good"
+                  ? "Good"
+                  : posture.label === "bad"
+                    ? "Poor"
+                    : "No pose"}
               </p>
+
+              {postureReasons && (
+                <p className="mt-1 text-xs text-red-600">
+                  {postureReasons}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -771,9 +789,16 @@ export default function HomePage() {
 
         {/* ALERT */}
         {showAlert && isMonitoring && (
-          <div className="mt-6 rounded-xl border border-red-500 p-4">
+          <div className="mt-6 rounded-xl border border-red-500 bg-red-500/10 p-4 text-left">
             <p className="font-semibold text-red-600">Fix your posture</p>
-            <button onClick={dismissAlert} className="text-sm underline">
+
+            {postureReasons && (
+              <p className="mt-2 text-sm text-red-600">
+                Reason: {postureReasons}
+              </p>
+            )}
+
+            <button onClick={dismissAlert} className="mt-2 text-sm underline">
               Dismiss
             </button>
           </div>

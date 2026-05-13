@@ -11,15 +11,15 @@ export type PostureBaseline = PostureMetrics;
 
 export type PostureAnalysisResult =
   | {
-      label: "no-pose";
-      reasons: string[];
-      metrics: null;
-    }
+    label: "no-pose";
+    reasons: string[];
+    metrics: null;
+  }
   | {
-      label: "good" | "bad";
-      reasons: string[];
-      metrics: PostureMetrics;
-    };
+    label: "good" | "bad";
+    reasons: string[];
+    metrics: PostureMetrics;
+  };
 
 export function usePostureAnalysis(
   result: PoseLandmarkerResult | null,
@@ -87,9 +87,9 @@ export function usePostureAnalysis(
       ? Math.abs(metrics.headSideOffset - baseline.headSideOffset)
       : metrics.headSideOffset;
 
-    const isShoulderTilted = shoulderTiltValue > 0.025;
-    const isHeadTilted = headTiltValue > 0.018;
-    const isHeadOffCenter = headSideOffsetValue > 0.03;
+    const isShoulderTilted = shoulderTiltValue > 0.015;
+    const isHeadTilted = headTiltValue > 0.010;
+    const isHeadOffCenter = headSideOffsetValue > 0.018;
 
     const reasons: string[] = [];
 
