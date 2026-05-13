@@ -55,6 +55,8 @@ export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestMetricsRef = useRef<PostureBaseline | null>(null);
   const ignoreNextPiPLeaveRef = useRef(false);
+  const lastHandledAlertCountRef = useRef(0);
+  const sessionCompleteMessageShownRef = useRef(false);
   const noPersonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pipMessage, setPipMessage] = useState<string | null>(null);
   const [baseline, setBaseline] = useState<PostureBaseline | null>(null);
@@ -62,11 +64,9 @@ export default function HomePage() {
   const [calibrationStatus, setCalibrationStatus] = useState<"idle" | "success" | "error" | "info">(
     "idle",
   );
-  const [noPersonMessage, setNoPersonMessage] = useState<string | null>(null);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
-  const [sessionCompleteMessageShown, setSessionCompleteMessageShown] = useState(false);
   const [hasSessionStarted, setHasSessionStarted] = useState(false);
 
   const { videoRef, isRunning, error, startCamera, stopCamera } = useWebcam();
@@ -83,6 +83,7 @@ export default function HomePage() {
     posture,
     ALERT_THRESHOLD_MS,
     ALERT_REPEAT_MS,
+    isMonitoring,
   );
   const { permission, requestPermission, showNotification } = useBrowserNotification();
   const { summary, exportSession } = useSessionTracking(
@@ -99,6 +100,10 @@ export default function HomePage() {
     posture.label === "bad" && posture.reasons.length > 0
       ? posture.reasons.join(", ")
       : "";
+  const noPersonMessage =
+    isMonitoring && posture.label === "no-pose"
+      ? "No person detected. Monitoring will stop if no person is detected for 10 minutes."
+      : null;
 
   usePoseOverlay(canvasRef, videoRef, result);
 
@@ -139,7 +144,14 @@ export default function HomePage() {
   }, [stopCamera, stopDetection]);
 
   useEffect(() => {
-    if (alertCount <= 0) return;
+    if (!isMonitoring) {
+      lastHandledAlertCountRef.current = alertCount;
+      return;
+    }
+
+    if (alertCount <= lastHandledAlertCountRef.current) return;
+
+    lastHandledAlertCountRef.current = alertCount;
 
     playBeep();
 
@@ -149,18 +161,20 @@ export default function HomePage() {
         ? `Poor posture detected: ${postureReasons}.`
         : "Poor posture has been detected. Sit upright and realign your head and shoulders.",
     );
-  }, [alertCount, showNotification, postureReasons]);
+  }, [alertCount, isMonitoring, showNotification, postureReasons]);
 
   useEffect(() => {
     if (!isMonitoring) return;
-    if (sessionCompleteMessageShown) return;
+    if (sessionCompleteMessageShownRef.current) return;
 
     if (summary.sessionDurationMs >= SESSION_TARGET_MS) {
-      setSessionCompleteMessageShown(true);
+      sessionCompleteMessageShownRef.current = true;
 
-      setPipMessage(
-        "Session requirement met. You can now end the session and export your data.",
-      );
+      queueMicrotask(() => {
+        setPipMessage(
+          "Session requirement met. You can now end the session and export your data.",
+        );
+      });
 
       playBeep();
 
@@ -172,7 +186,6 @@ export default function HomePage() {
   }, [
     isMonitoring,
     summary.sessionDurationMs,
-    sessionCompleteMessageShown,
     SESSION_TARGET_MS,
     showNotification,
   ]);
@@ -207,15 +220,10 @@ export default function HomePage() {
         noPersonTimeoutRef.current = null;
       }
 
-      setNoPersonMessage(null);
       return;
     }
 
     if (posture.label === "no-pose") {
-      setNoPersonMessage(
-        "No person detected. Monitoring will stop if no person is detected for 10 minutes.",
-      );
-
       if (!noPersonTimeoutRef.current) {
         noPersonTimeoutRef.current = setTimeout(() => {
           dismissAlert();
@@ -228,7 +236,6 @@ export default function HomePage() {
             void document.exitPictureInPicture();
           }
 
-          setNoPersonMessage(null);
           setPipMessage(
             "Session ended because no person was detected for 10 continuous minutes. A valid study session requires 60 minutes, so you may need to start a new session.",
           );
@@ -244,8 +251,6 @@ export default function HomePage() {
       clearTimeout(noPersonTimeoutRef.current);
       noPersonTimeoutRef.current = null;
     }
-
-    setNoPersonMessage(null);
   }, [
     isMonitoring,
     posture.label,
@@ -348,7 +353,7 @@ export default function HomePage() {
     setCalibrationStatus("idle");
 
     setShowCameraPreview(false);
-    setSessionCompleteMessageShown(false);
+    sessionCompleteMessageShownRef.current = false;
     setHasSessionStarted(true);
     setIsMonitoring(true);
     await startDetection(video);
